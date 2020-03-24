@@ -21,6 +21,8 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"os"
+	"os/signal"
 	"strings"
 	"time"
 
@@ -38,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
