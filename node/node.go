@@ -398,10 +398,13 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	return nil
 }
 
-// CreateHandler creates the handler stack necessary to handle both http rpc requests and websocket requests
-func (n *Node) CreateHandler(srv *rpc.Server, cors []string, vhosts []string, wsOrigins []string) http.Handler {
-	handler := rpc.NewHTTPHandlerStack(srv, cors, vhosts)
-	return rpc.NewWebsocketUpgradeHandler(handler, srv.WebsocketHandler(wsOrigins))
+// AddWebsocketHandler creates the handler stack necessary to handle both http rpc requests and websocket requests
+func (n *Node) AddWebsocketHandler(handler http.Handler, websocket http.Handler) http.Handler {
+	if websocket != nil {
+		return rpc.NewWebsocketUpgradeHandler(handler, websocket)
+	}
+
+	return handler
 }
 
 // stopHTTP terminates the HTTP RPC endpoint.
