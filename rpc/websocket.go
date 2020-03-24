@@ -55,6 +55,7 @@ func (s *Server) WebsocketHandler(allowedOrigins []string) http.Handler {
 			log.Debug("WebSocket upgrade failed", "err", err)
 			return
 		}
+
 		codec := newWebsocketCodec(conn)
 		s.ServeCodec(codec, 0)
 	})
