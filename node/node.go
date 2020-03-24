@@ -25,6 +25,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -364,7 +365,10 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	if endpoint == "" {
 		return nil
 	}
-	listener, handler, err := rpc.StartHTTPEndpoint(endpoint, apis, modules, cors, vhosts, timeouts)
+	// create handler stack
+	handler, timeouts := n.CreateHandlers(cors, vhosts, timeouts)
+
+	listener, err := rpc.StartHTTPEndpoint(endpoint, apis, modules, *handler, timeouts)
 	if err != nil {
 		return err
 	}
@@ -377,6 +381,31 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	n.httpHandler = handler
 
 	return nil
+}
+
+func (n *Node) CreateHandlers(cors []string, vhosts []string, timeouts rpc.HTTPTimeouts) (*rpc.Server, rpc.HTTPTimeouts) {
+	srv := rpc.NewServer()
+
+	handler := rpc.NewCorsHandler(srv, cors)
+	handler = rpc.NewVHostHandler(vhosts, handler)
+	handler = rpc.NewGzipHandler(handler)
+	handler = srv.WebsocketHandler(n.config.WSOrigins)
+
+	// Make sure timeout values are meaningful
+	if timeouts.ReadTimeout < time.Second {
+		log.Warn("Sanitizing invalid HTTP read timeout", "provided", timeouts.ReadTimeout, "updated", rpc.DefaultHTTPTimeouts.ReadTimeout)
+		timeouts.ReadTimeout = rpc.DefaultHTTPTimeouts.ReadTimeout
+	}
+	if timeouts.WriteTimeout < time.Second {
+		log.Warn("Sanitizing invalid HTTP write timeout", "provided", timeouts.WriteTimeout, "updated", rpc.DefaultHTTPTimeouts.WriteTimeout)
+		timeouts.WriteTimeout = rpc.DefaultHTTPTimeouts.WriteTimeout
+	}
+	if timeouts.IdleTimeout < time.Second {
+		log.Warn("Sanitizing invalid HTTP idle timeout", "provided", timeouts.IdleTimeout, "updated", rpc.DefaultHTTPTimeouts.IdleTimeout)
+		timeouts.IdleTimeout = rpc.DefaultHTTPTimeouts.IdleTimeout
+	}
+
+	return srv, timeouts
 }
 
 // stopHTTP terminates the HTTP RPC endpoint.

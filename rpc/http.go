@@ -214,9 +214,10 @@ func (t *httpServerConn) SetWriteDeadline(time.Time) error { return nil }
 // Deprecated: Server implements http.Handler
 func NewHTTPServer(cors []string, vhosts []string, timeouts HTTPTimeouts, srv http.Handler) *http.Server {
 	// Wrap the CORS-handler within a host-handler
-	handler := newCorsHandler(srv, cors)
-	handler = newVHostHandler(vhosts, handler)
-	handler = newGzipHandler(handler)
+	handler := NewCorsHandler(srv, cors)
+	handler = NewVHostHandler(vhosts, handler)
+	handler = NewGzipHandler(handler)
+
 
 	// Make sure timeout values are meaningful
 	if timeouts.ReadTimeout < time.Second {
@@ -231,6 +232,7 @@ func NewHTTPServer(cors []string, vhosts []string, timeouts HTTPTimeouts, srv ht
 		log.Warn("Sanitizing invalid HTTP idle timeout", "provided", timeouts.IdleTimeout, "updated", DefaultHTTPTimeouts.IdleTimeout)
 		timeouts.IdleTimeout = DefaultHTTPTimeouts.IdleTimeout
 	}
+
 	// Bundle and start the HTTP server
 	return &http.Server{
 		Handler:      handler,
@@ -297,7 +299,7 @@ func validateRequest(r *http.Request) (int, error) {
 	return http.StatusUnsupportedMediaType, err
 }
 
-func newCorsHandler(srv http.Handler, allowedOrigins []string) http.Handler {
+func NewCorsHandler(srv http.Handler, allowedOrigins []string) http.Handler {
 	// disable CORS support if user has not specified a custom CORS configuration
 	if len(allowedOrigins) == 0 {
 		return srv
@@ -350,7 +352,7 @@ func (h *virtualHostHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "invalid host specified", http.StatusForbidden)
 }
 
-func newVHostHandler(vhosts []string, next http.Handler) http.Handler {
+func NewVHostHandler(vhosts []string, next http.Handler) http.Handler {
 	vhostMap := make(map[string]struct{})
 	for _, allowedHost := range vhosts {
 		vhostMap[strings.ToLower(allowedHost)] = struct{}{}

@@ -18,6 +18,7 @@ package rpc
 
 import (
 	"net"
+	"net/http"
 
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -42,7 +43,7 @@ func checkModuleAvailability(modules []string, apis []API) (bad, available []str
 }
 
 // StartHTTPEndpoint starts the HTTP RPC endpoint, configured with cors/vhosts/modules.
-func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []string, vhosts []string, timeouts HTTPTimeouts) (net.Listener, *Server, error) {
+func StartHTTPEndpoint(endpoint string, apis []API, modules []string, handler Server, timeouts HTTPTimeouts) (net.Listener, error) {
 	if bad, available := checkModuleAvailability(modules, apis); len(bad) > 0 {
 		log.Error("Unavailable modules in HTTP API list", "unavailable", bad, "available", available)
 	}
@@ -52,11 +53,10 @@ func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []str
 		whitelist[module] = true
 	}
 	// Register all the APIs exposed by the services
-	handler := NewServer()
 	for _, api := range apis {
 		if whitelist[api.Namespace] || (len(whitelist) == 0 && api.Public) {
 			if err := handler.RegisterName(api.Namespace, api.Service); err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 			log.Debug("HTTP registered", "namespace", api.Namespace)
 		}
@@ -67,10 +67,18 @@ func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []str
 		err      error
 	)
 	if listener, err = net.Listen("tcp", endpoint); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	go NewHTTPServer(cors, vhosts, timeouts, handler).Serve(listener)
-	return listener, handler, err
+
+	httpServer := &http.Server{
+		Handler:      &handler,
+		ReadTimeout:  timeouts.ReadTimeout,
+		WriteTimeout: timeouts.WriteTimeout,
+		IdleTimeout:  timeouts.IdleTimeout,
+	}
+
+	go httpServer.Serve(listener)
+	return listener, err
 }
 
 // StartWSEndpoint starts a websocket endpoint.
