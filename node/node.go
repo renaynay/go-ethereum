@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -395,6 +396,12 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	n.httpHandler = srv
 
 	return nil
+}
+
+// CreateHandler creates the handler stack necessary to handle both http rpc requests and websocket requests
+func (n *Node) CreateHandler(srv *rpc.Server, cors []string, vhosts []string, wsOrigins []string) http.Handler {
+	handler := rpc.NewHTTPHandlerStack(srv, cors, vhosts)
+	return rpc.NewWebsocketUpgradeHandler(handler, srv.WebsocketHandler(wsOrigins))
 }
 
 // stopHTTP terminates the HTTP RPC endpoint.
