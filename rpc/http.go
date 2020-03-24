@@ -217,7 +217,9 @@ func NewHTTPServer(cors []string, vhosts []string, timeouts HTTPTimeouts, srv ht
 	handler := newCorsHandler(srv, cors)
 	handler = newVHostHandler(vhosts, handler)
 	handler = newGzipHandler(handler)
-	handler = newWebsocketUpgradeHandler(handler, ws)
+	if ws != nil {
+		handler = newWebsocketUpgradeHandler(handler, ws)
+	}
 
 	// Make sure timeout values are meaningful
 	if timeouts.ReadTimeout < time.Second {

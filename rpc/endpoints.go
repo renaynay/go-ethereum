@@ -70,8 +70,8 @@ func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []str
 		return nil, nil, err
 	}
 
-
-	go NewHTTPServer(cors, vhosts, timeouts, handler, handler.WebsocketHandler(wsOrigins)).Serve(listener)
+	// handler.WebsocketHandler(wsOrigins)
+	go NewHTTPServer(cors, vhosts, timeouts, handler, nil).Serve(listener)
 	return listener, handler, err
 }
 
