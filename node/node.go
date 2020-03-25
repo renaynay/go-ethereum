@@ -384,6 +384,11 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	// wrap handler in websocket handler only if websocket port is the same as http rpc
 	handler := n.AddWebsocketHandler(NewHTTPHandlerStack(srv, cors, vhosts), ws)
 
+	// TODO graphql support here
+	if n.config.GraphQLEndpoint() == n.httpEndpoint {
+		handler = n.AddGraphQLHandler()
+	}
+
 	listener, err := rpc.StartHTTPEndpoint(endpoint, timeouts, handler)
 	if err != nil {
 		return err
@@ -410,6 +415,8 @@ func (n *Node) AddWebsocketHandler(handler http.Handler, websocket http.Handler)
 
 	return handler
 }
+
+func (n *Node) AddGraphQLHandler( handler http.Handler, )
 
 // stopHTTP terminates the HTTP RPC endpoint.
 func (n *Node) stopHTTP() {
