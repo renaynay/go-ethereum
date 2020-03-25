@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -371,34 +370,16 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	}
 	// register apis and create handler stack
 	srv := rpc.NewServer()
-<<<<<<< HEAD
 	err := RegisterApisFromWhitelist(apis, modules, srv, false)
 	if err != nil {
 		return err
-=======
-
-	err := RegisterApisFromWhitelist(apis, modules, srv)
-	if err != nil {
-		return err // TODO this should return upon failure, right?
-	}
-
-	var ws http.Handler
-	if n.httpEndpoint == n.wsEndpoint {
-		ws = srv.WebsocketHandler(wsOrigins)
->>>>>>> 3de74d221... fixed some errors related to crashing travis build
 	}
 	handler := NewHTTPHandlerStack(srv, cors, vhosts)
 	// wrap handler in websocket handler only if websocket port is the same as http rpc
-<<<<<<< HEAD
 	if n.httpEndpoint == n.wsEndpoint {
 		handler = NewWebsocketUpgradeHandler(handler, srv.WebsocketHandler(wsOrigins))
 	}
 	listener, err := StartHTTPEndpoint(endpoint, timeouts, handler)
-=======
-	handler := n.AddWebsocketHandler(NewHTTPHandlerStack(srv, cors, vhosts), ws)
-
-	listener, err := rpc.StartHTTPEndpoint(endpoint, timeouts, handler)
->>>>>>> 3de74d221... fixed some errors related to crashing travis build
 	if err != nil {
 		return err
 	}
@@ -414,15 +395,6 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	n.httpHandler = srv
 
 	return nil
-}
-
-// AddWebsocketHandler creates the handler stack necessary to handle both http rpc requests and websocket requests
-func (n *Node) AddWebsocketHandler(handler http.Handler, websocket http.Handler) http.Handler {
-	if websocket != nil {
-		return NewWebsocketUpgradeHandler(handler, websocket)
-	}
-
-	return handler
 }
 
 // stopHTTP terminates the HTTP RPC endpoint.
