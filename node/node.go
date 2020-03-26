@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -67,6 +68,8 @@ type Node struct {
 	wsEndpoint string       // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
 	wsListener net.Listener // Websocket RPC listener socket to server API requests
 	wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
+
+	graphqlHandler http.Handler // GraphQL request handler to process graphql requests
 
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
@@ -220,6 +223,7 @@ func (n *Node) Start() error {
 	if err := running.Start(); err != nil {
 		return convertFileLockError(err)
 	}
+
 	// Start each of the services
 	var started []reflect.Type
 	for kind, service := range services {
@@ -379,13 +383,12 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	handler := NewHTTPHandlerStack(srv, cors, vhosts)
 	// wrap handler in websocket handler only if websocket port is the same as http rpc
 	if n.httpEndpoint == n.wsEndpoint {
-		handler = NewWebsocketUpgradeHandler(handler, srv.WebsocketHandler(wsOrigins))
+		handler = AddWebsocketUpgradeHandler(handler, srv.WebsocketHandler(wsOrigins))
 	}
 
-	//// TODO graphql support here
-	//if n.config.GraphQLEndpoint() == n.httpEndpoint {
-	//	handler = n.AddGraphQLHandler()
-	//}
+	if n.config.GraphQLPort == n.config.HTTPPort {
+		handler = AddGraphQLHandler(handler, n.graphqlHandler)
+	}
 
 	listener, err := rpc.StartHTTPEndpoint(endpoint, timeouts, handler)
 	if err != nil {
@@ -396,6 +399,9 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 		"vhosts", strings.Join(vhosts, ","))
 	if n.httpEndpoint == n.wsEndpoint {
 		n.log.Info("WebSocket endpoint opened", "url", fmt.Sprintf("ws://%v", listener.Addr()))
+	}
+	if n.config.GraphQLPort == n.config.HTTPPort {
+		log.Info("GraphQL endpoint opened", "url", fmt.Sprintf("http://%v", listener.Addr())) // TODO is this the accurate endpoint?
 	}
 	// All listeners booted successfully
 	n.httpEndpoint = endpoint
@@ -710,4 +716,10 @@ func RegisterApisFromWhitelist(apis []rpc.API, modules []string, srv *rpc.Server
 		}
 	}
 	return nil
+}
+
+func (n *Node) SetGraphQLHandler(h http.Handler) {
+	if h != nil {
+		n.graphqlHandler = h
+	}
 }

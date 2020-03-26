@@ -38,16 +38,19 @@ type Service struct {
 	backend  ethapi.Backend   // The backend that queries will operate onn.
 	handler  http.Handler     // The `http.Handler` used to answer queries.
 	listener net.Listener     // The listening socket.
+
+	noStart bool			  // disables the start of a separate graphql server, usually when graphql and http port are the same.
 }
 
 // New constructs a new GraphQL service instance.
-func New(backend ethapi.Backend, endpoint string, cors, vhosts []string, timeouts rpc.HTTPTimeouts) (*Service, error) {
+func New(backend ethapi.Backend, endpoint string, cors, vhosts []string, timeouts rpc.HTTPTimeouts, noStart bool) (*Service, error) {
 	return &Service{
 		endpoint: endpoint,
 		cors:     cors,
 		vhosts:   vhosts,
 		timeouts: timeouts,
 		backend:  backend,
+		noStart:  noStart,
 	}, nil
 }
 
@@ -60,16 +63,19 @@ func (s *Service) APIs() []rpc.API { return nil }
 // Start is called after all services have been constructed and the networking
 // layer was also initialized to spawn any goroutines required by the service.
 func (s *Service) Start(server *p2p.Server) error {
-	//var err error
-	//s.handler, err = newHandler(s.backend)
-	//if err != nil {
-	//	return err
-	//}
-	//if s.listener, err = net.Listen("tcp", s.endpoint); err != nil {
-	//	return err
-	//}
-	//go rpc.NewHTTPServer(s.cors, s.vhosts, s.timeouts, s.handler, []string{}).Serve(s.listener)
-	//log.Info("GraphQL endpoint opened", "url", fmt.Sprintf("http://%s", s.endpoint))
+	var err error
+	s.handler, err = newHandler(s.backend)
+	if err != nil {
+		return err
+	}
+	if s.noStart {
+		return nil
+	}
+	if s.listener, err = net.Listen("tcp", s.endpoint); err != nil {
+		return err
+	}
+	// go rpc.NewHTTPServer(s.cors, s.vhosts, s.timeouts, s.handler, []string{}).Serve(s.listener)
+	log.Info("GraphQL endpoint opened", "url", fmt.Sprintf("http://%s", s.endpoint))
 	return nil
 }
 
@@ -100,4 +106,8 @@ func (s *Service) Stop() error {
 		log.Info("GraphQL endpoint closed", "url", fmt.Sprintf("http://%s", s.endpoint))
 	}
 	return nil
+}
+
+func (s *Service) Handler() http.Handler {
+	return s.handler
 }

@@ -139,7 +139,7 @@ func newGzipHandler(next http.Handler) http.Handler {
 	})
 }
 
-func NewWebsocketUpgradeHandler(h http.Handler, ws http.Handler) http.Handler {
+func AddWebsocketUpgradeHandler(h http.Handler, ws http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if isWebsocket(r) {
 			ws.ServeHTTP(w, r)
@@ -154,4 +154,21 @@ func NewWebsocketUpgradeHandler(h http.Handler, ws http.Handler) http.Handler {
 func isWebsocket(r *http.Request) bool {
 	return strings.ToLower(r.Header.Get("Upgrade")) == "websocket" &&
 		strings.ToLower(r.Header.Get("Connection")) == "upgrade"
+}
+
+func AddGraphQLHandler(h http.Handler, gql http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isGraphQL(r) {
+			gql.ServeHTTP(w, r)
+			log.Debug("serving graphql request")
+			return
+		}
+
+		h.ServeHTTP(w, r)
+	})
+}
+
+func isGraphQL(r *http.Request) bool {
+	// TODO how to recognise the path ? in header? 
+	return false
 }
