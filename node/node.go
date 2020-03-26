@@ -236,19 +236,17 @@ func (n *Node) Start() error {
 
 			return err
 		}
-
 		// Mark the service started for potential cleanup
 		started = append(started, kind)
 
-		if kind.String() == "*graphql.Service" && service.APIs() != nil { // TODO change this entire conditional, it is ugly
+		// set the graphql handler of the node only if the graphql port and rpc port are the same
+		if n.Config().GraphQLPort == n.Config().HTTPPort && kind.String() == "*graphql.Service" && service.APIs() != nil { // TODO change this entire conditional, it is ugly
 			 graphqlHandler := service.APIs()[0].Service
 			 if handler, ok := graphqlHandler.(http.Handler); ok {
 				 n.SetGraphQLHandler(handler)
 			 }
 		}
 	}
-
-
 	// Lastly start the configured RPC interfaces
 	if err := n.startRPC(services); err != nil {
 		for _, service := range services {
