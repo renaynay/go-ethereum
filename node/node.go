@@ -382,10 +382,10 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 		handler = NewWebsocketUpgradeHandler(handler, srv.WebsocketHandler(wsOrigins))
 	}
 
-	// TODO graphql support here
-	if n.config.GraphQLEndpoint() == n.httpEndpoint {
-		handler = n.AddGraphQLHandler()
-	}
+	//// TODO graphql support here
+	//if n.config.GraphQLEndpoint() == n.httpEndpoint {
+	//	handler = n.AddGraphQLHandler()
+	//}
 
 	listener, err := rpc.StartHTTPEndpoint(endpoint, timeouts, handler)
 	if err != nil {
