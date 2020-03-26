@@ -236,9 +236,21 @@ func (n *Node) Start() error {
 
 			return err
 		}
+
 		// Mark the service started for potential cleanup
 		started = append(started, kind)
+
+		if kind.String() == "*graphql.Service" { // TODO change this
+			log.Error("we are in this ugly condition statement........") // TODO REMOVE
+			 graphqlHandler := service.APIs()[0].Service // TODO FIX THIS, it's so ugly
+			 if handler, ok := graphqlHandler.(http.Handler); ok {
+				 log.Error("setting Graphql handler!.........") // TODO REMOVE
+				 n.SetGraphQLHandler(handler)
+			 }
+		}
 	}
+
+
 	// Lastly start the configured RPC interfaces
 	if err := n.startRPC(services); err != nil {
 		for _, service := range services {
@@ -721,5 +733,10 @@ func RegisterApisFromWhitelist(apis []rpc.API, modules []string, srv *rpc.Server
 func (n *Node) SetGraphQLHandler(h http.Handler) {
 	if h != nil {
 		n.graphqlHandler = h
+		log.Error("handler is set SUCCESS") // TODO REMOVE
+		return
 	}
+
+	log.Error("handler came back as nil.... FATAL") // TODO REMOVE
+	return
 }

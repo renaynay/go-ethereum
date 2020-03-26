@@ -1623,9 +1623,7 @@ func RegisterGraphQLService(stack *node.Node, endpoint string, cors, vhosts []st
 		var ethServ *eth.Ethereum
 		if err := ctx.Service(&ethServ); err == nil {
 			if stack.Config().GraphQLPort == stack.Config().HTTPPort {
-				graphqlService, err := graphql.New(ethServ.APIBackend, endpoint, cors, vhosts, timeouts, true)
-				stack.SetGraphQLHandler(graphqlService.Handler())
-				return graphqlService, err
+				return graphql.New(ethServ.APIBackend, endpoint, cors, vhosts, timeouts, true)
 			}
 			return graphql.New(ethServ.APIBackend, endpoint, cors, vhosts, timeouts, false)
 		}
@@ -1633,9 +1631,7 @@ func RegisterGraphQLService(stack *node.Node, endpoint string, cors, vhosts []st
 		var lesServ *les.LightEthereum
 		if err := ctx.Service(&lesServ); err == nil {
 			if stack.Config().GraphQLPort == stack.Config().HTTPPort {
-				graphqlService, err := graphql.New(lesServ.ApiBackend, endpoint, cors, vhosts, timeouts, true)
-				stack.SetGraphQLHandler(graphqlService.Handler())
-				return graphqlService, err
+				return graphql.New(lesServ.ApiBackend, endpoint, cors, vhosts, timeouts, true)
 			}
 			return graphql.New(lesServ.ApiBackend, endpoint, cors, vhosts, timeouts, false)
 		}

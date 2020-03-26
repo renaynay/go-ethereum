@@ -58,7 +58,20 @@ func New(backend ethapi.Backend, endpoint string, cors, vhosts []string, timeout
 func (s *Service) Protocols() []p2p.Protocol { return nil }
 
 // APIs returns the list of APIs exported by this service.
-func (s *Service) APIs() []rpc.API { return nil }
+func (s *Service) APIs() []rpc.API {
+	if s.noStart {
+		return []rpc.API{
+			{
+				Namespace: "graphql_handler",
+				Version:   "",
+				Service:   s.handler,
+				Public:    false,
+			},
+		}
+	}
+
+	return nil
+}
 
 // Start is called after all services have been constructed and the networking
 // layer was also initialized to spawn any goroutines required by the service.
@@ -106,8 +119,4 @@ func (s *Service) Stop() error {
 		log.Info("GraphQL endpoint closed", "url", fmt.Sprintf("http://%s", s.endpoint))
 	}
 	return nil
-}
-
-func (s *Service) Handler() http.Handler {
-	return s.handler
 }
