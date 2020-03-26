@@ -159,6 +159,7 @@ func isWebsocket(r *http.Request) bool {
 func AddGraphQLHandler(h http.Handler, gql http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if isGraphQL(r) {
+			log.Error("is graphql! ") // TODO REMOVE
 			gql.ServeHTTP(w, r)
 			log.Debug("serving graphql request")
 			return
@@ -169,6 +170,5 @@ func AddGraphQLHandler(h http.Handler, gql http.Handler) http.Handler {
 }
 
 func isGraphQL(r *http.Request) bool {
-	log.Error("A GRAPH QL REQUEST OMGGGG") // TODO REMOVE
-	return r.Header.Get("Content-type") == "application/graphql" // TODO how to recognise the path ? in header?
+	return r.RequestURI == "/graphql" // TODO how to recognise the path ? in header?
 }
