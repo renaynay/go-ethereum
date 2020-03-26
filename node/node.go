@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/graphql"
 	"github.com/ethereum/go-ethereum/internal/debug"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -240,7 +241,8 @@ func (n *Node) Start() error {
 		started = append(started, kind)
 
 		// set the graphql handler of the node only if the graphql port and rpc port are the same
-		if n.Config().GraphQLPort == n.Config().HTTPPort && kind.String() == "*graphql.Service" && service.APIs() != nil { // TODO change this entire conditional, it is ugly
+		_, ok := service.(*graphql.Service)
+		if n.Config().GraphQLPort == n.Config().HTTPPort && ok && service.APIs() != nil { // TODO change this entire conditional, it is ugly
 			 graphqlHandler := service.APIs()[0].Service
 			 if handler, ok := graphqlHandler.(http.Handler); ok {
 				 n.SetGraphQLHandler(handler)
