@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/graph-gophers/graphql-go"
@@ -77,17 +78,30 @@ func (s *Service) APIs() []rpc.API {
 // layer was also initialized to spawn any goroutines required by the service.
 func (s *Service) Start(server *p2p.Server) error {
 	var err error
+	// create graphql handler
 	s.handler, err = newHandler(s.backend)
 	if err != nil {
 		return err
 	}
+	// check if a separate graphql server should be started, given the endpoint differs from the specified rpc endpoint
 	if s.noStart {
 		return nil
 	}
 	if s.listener, err = net.Listen("tcp", s.endpoint); err != nil {
 		return err
 	}
-	// go rpc.NewHTTPServer(s.cors, s.vhosts, s.timeouts, s.handler, []string{}).Serve(s.listener)
+	// create handler stack
+	srv := rpc.NewServer()
+	handler := node.NewHTTPHandlerStack(srv, s.cors, s.vhosts)
+	handler = wrapGraphQLHandler(handler, s.handler)
+	// create http server
+	httpSrv := &http.Server{
+		Handler:      handler,
+		ReadTimeout:  s.timeouts.ReadTimeout,
+		WriteTimeout: s.timeouts.WriteTimeout,
+		IdleTimeout:  s.timeouts.IdleTimeout,
+	}
+	go httpSrv.Serve(s.listener)
 	log.Info("GraphQL endpoint opened", "url", fmt.Sprintf("http://%s", s.endpoint))
 	return nil
 }
@@ -119,4 +133,12 @@ func (s *Service) Stop() error {
 		log.Info("GraphQL endpoint closed", "url", fmt.Sprintf("http://%s", s.endpoint))
 	}
 	return nil
+}
+
+func wrapGraphQLHandler(h http.Handler, gql http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gql.ServeHTTP(w, r)
+		log.Debug("serving graphql request")
+		return
+	})
 }

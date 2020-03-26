@@ -240,11 +240,9 @@ func (n *Node) Start() error {
 		// Mark the service started for potential cleanup
 		started = append(started, kind)
 
-		if kind.String() == "*graphql.Service" { // TODO change this
-			log.Error("we are in this ugly condition statement........") // TODO REMOVE
-			 graphqlHandler := service.APIs()[0].Service // TODO FIX THIS, it's so ugly
+		if kind.String() == "*graphql.Service" && service.APIs() != nil { // TODO change this entire conditional, it is ugly
+			 graphqlHandler := service.APIs()[0].Service
 			 if handler, ok := graphqlHandler.(http.Handler); ok {
-				 log.Error("setting Graphql handler!.........") // TODO REMOVE
 				 n.SetGraphQLHandler(handler)
 			 }
 		}
@@ -731,12 +729,6 @@ func RegisterApisFromWhitelist(apis []rpc.API, modules []string, srv *rpc.Server
 }
 
 func (n *Node) SetGraphQLHandler(h http.Handler) {
-	if h != nil {
-		n.graphqlHandler = h
-		log.Error("handler is set SUCCESS") // TODO REMOVE
-		return
-	}
-
-	log.Error("handler came back as nil.... FATAL") // TODO REMOVE
+	n.graphqlHandler = h
 	return
 }
