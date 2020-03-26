@@ -1622,18 +1622,12 @@ func RegisterGraphQLService(stack *node.Node, endpoint string, cors, vhosts []st
 		// Try to construct the GraphQL service backed by a full node
 		var ethServ *eth.Ethereum
 		if err := ctx.Service(&ethServ); err == nil {
-			if stack.Config().GraphQLPort == stack.Config().HTTPPort {
-				return graphql.New(ethServ.APIBackend, endpoint, cors, vhosts, timeouts, true)
-			}
-			return graphql.New(ethServ.APIBackend, endpoint, cors, vhosts, timeouts, false)
+			return graphql.New(ethServ.APIBackend, endpoint, cors, vhosts, timeouts, stack.Config().GraphQLPort == stack.Config().HTTPPort)
 		}
 		// Try to construct the GraphQL service backed by a light node
 		var lesServ *les.LightEthereum
 		if err := ctx.Service(&lesServ); err == nil {
-			if stack.Config().GraphQLPort == stack.Config().HTTPPort {
-				return graphql.New(lesServ.ApiBackend, endpoint, cors, vhosts, timeouts, true)
-			}
-			return graphql.New(lesServ.ApiBackend, endpoint, cors, vhosts, timeouts, false)
+			return graphql.New(lesServ.ApiBackend, endpoint, cors, vhosts, timeouts, stack.Config().GraphQLPort == stack.Config().HTTPPort)
 		}
 		// Well, this should not have happened, bail out
 		return nil, errors.New("no Ethereum service")
