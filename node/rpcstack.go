@@ -169,6 +169,6 @@ func AddGraphQLHandler(h http.Handler, gql http.Handler) http.Handler {
 }
 
 func isGraphQL(r *http.Request) bool {
-	// TODO how to recognise the path ? in header? 
-	return false
+	log.Error("A GRAPH QL REQUEST OMGGGG") // TODO REMOVE
+	return r.Header.Get("Content-type") == "application/graphql" // TODO how to recognise the path ? in header?
 }
