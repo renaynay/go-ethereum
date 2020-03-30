@@ -602,16 +602,7 @@ func TestAPIGather(t *testing.T) {
 }
 
 func TestWebsocketHTTPOnSamePort_WebsocketRequest(t *testing.T) {
-	conf := &Config{HTTPPort: 4343, WSPort: 4343}
-	node, err := New(conf)
-	if err != nil {
-		t.Error("could not create a new node ", err)
-	}
-
-	err = node.startHTTP("127.0.0.1:4343", []rpc.API{}, []string{}, []string{}, []string{}, rpc.HTTPTimeouts{}, []string{})
-	if err != nil {
-		t.Error("could not start http service on node ", err)
-	}
+	startHTTP(t)
 
 	wsReq, err := http.NewRequest(http.MethodGet, "http://127.0.0.1:4343", nil)
 	if err != nil {
@@ -630,16 +621,7 @@ func TestWebsocketHTTPOnSamePort_WebsocketRequest(t *testing.T) {
 }
 
 func TestWebsocketHTTPOnSamePort_HTTPRequest(t *testing.T) {
-	conf := &Config{HTTPPort: 4343, WSPort: 4343}
-	node, err := New(conf)
-	if err != nil {
-		t.Error("could not create a new node ", err)
-	}
-
-	err = node.startHTTP("127.0.0.1:4343", []rpc.API{}, []string{}, []string{}, []string{}, rpc.HTTPTimeouts{}, []string{})
-	if err != nil {
-		t.Error("could not start http service on node ", err)
-	}
+	startHTTP(t)
 
 	httpReq, err := http.NewRequest(http.MethodGet, "http://127.0.0.1:4343", nil)
 	if err != nil {
@@ -652,6 +634,19 @@ func TestWebsocketHTTPOnSamePort_HTTPRequest(t *testing.T) {
 	httpResponse := <-httpResponses
 
 	assert.Equal(t,"gzip", httpResponse.Header.Get("Content-Encoding"))
+}
+
+func startHTTP(t *testing.T) {
+	conf := &Config{HTTPPort: 4343, WSPort: 4343}
+	node, err := New(conf)
+	if err != nil {
+		t.Error("could not create a new node ", err)
+	}
+
+	err = node.startHTTP("127.0.0.1:4343", []rpc.API{}, []string{}, []string{}, []string{}, rpc.HTTPTimeouts{}, []string{})
+	if err != nil {
+		t.Error("could not start http service on node ", err)
+	}
 }
 
 func doHTTPRequest(responses chan *http.Response, req *http.Request, t *testing.T) {
