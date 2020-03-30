@@ -379,6 +379,7 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	if n.httpEndpoint == n.wsEndpoint {
 		handler = NewWebsocketUpgradeHandler(handler, srv.WebsocketHandler(wsOrigins))
 	}
+
 	listener, err := StartHTTPEndpoint(endpoint, timeouts, handler)
 	if err != nil {
 		return err
