@@ -40,3 +40,19 @@ func StartIPCEndpoint(ipcEndpoint string, apis []API) (net.Listener, *Server, er
 	go handler.ServeListener(listener)
 	return listener, handler, nil
 }
+
+// CheckTimeouts ensures that timeout values are meaningful
+func CheckTimeouts(timeouts *HTTPTimeouts) {
+	if timeouts.ReadTimeout < time.Second {
+		log.Warn("Sanitizing invalid HTTP read timeout", "provided", timeouts.ReadTimeout, "updated", DefaultHTTPTimeouts.ReadTimeout)
+		timeouts.ReadTimeout = DefaultHTTPTimeouts.ReadTimeout
+	}
+	if timeouts.WriteTimeout < time.Second {
+		log.Warn("Sanitizing invalid HTTP write timeout", "provided", timeouts.WriteTimeout, "updated", DefaultHTTPTimeouts.WriteTimeout)
+		timeouts.WriteTimeout = DefaultHTTPTimeouts.WriteTimeout
+	}
+	if timeouts.IdleTimeout < time.Second {
+		log.Warn("Sanitizing invalid HTTP idle timeout", "provided", timeouts.IdleTimeout, "updated", DefaultHTTPTimeouts.IdleTimeout)
+		timeouts.IdleTimeout = DefaultHTTPTimeouts.IdleTimeout
+	}
+}
