@@ -25,6 +25,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -368,7 +369,7 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	if endpoint == "" {
 		return nil
 	}
-
+	// register apis and create handler stack
 	srv := rpc.NewServer()
 	err := RegisterApisFromWhitelist(apis, modules, srv, false)
 	if err != nil {
@@ -379,7 +380,7 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	if n.httpEndpoint == n.wsEndpoint {
 		handler = NewWebsocketUpgradeHandler(handler, srv.WebsocketHandler(wsOrigins))
 	}
-	listener, err := rpc.StartHTTPEndpoint(endpoint, timeouts, handler)
+	listener, err := StartHTTPEndpoint(endpoint, timeouts, handler)
 	if err != nil {
 		return err
 	}
@@ -424,7 +425,7 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 	if err != nil {
 		return err // TODO this should return upon failure, right?
 	}
-	listener, err := rpc.StartWSEndpoint(endpoint, handler)
+	listener, err := startWSEndpoint(endpoint, handler)
 	if err != nil {
 		return err
 	}
@@ -693,7 +694,7 @@ func (n *Node) apis() []rpc.API {
 // RegisterApisFromWhitelist checks the given modules' availability, generates a whitelist based on the allowed modules,
 // and then registers all of the APIs exposed by the services.
 func RegisterApisFromWhitelist(apis []rpc.API, modules []string, srv *rpc.Server, exposeAll bool) error {
-	if bad, available := rpc.CheckModuleAvailability(modules, apis); len(bad) > 0 {
+	if bad, available := checkModuleAvailability(modules, apis); len(bad) > 0 {
 		log.Error("Unavailable modules in HTTP API list", "unavailable", bad, "available", available)
 	}
 	// Generate the whitelist based on the allowed modules
@@ -711,4 +712,20 @@ func RegisterApisFromWhitelist(apis []rpc.API, modules []string, srv *rpc.Server
 		}
 	}
 	return nil
+}
+
+// CheckTimeouts ensures that timeout values are meaningful
+func CheckTimeouts(timeouts *rpc.HTTPTimeouts) {
+	if timeouts.ReadTimeout < time.Second {
+		log.Warn("Sanitizing invalid HTTP read timeout", "provided", timeouts.ReadTimeout, "updated", rpc.DefaultHTTPTimeouts.ReadTimeout)
+		timeouts.ReadTimeout = rpc.DefaultHTTPTimeouts.ReadTimeout
+	}
+	if timeouts.WriteTimeout < time.Second {
+		log.Warn("Sanitizing invalid HTTP write timeout", "provided", timeouts.WriteTimeout, "updated", rpc.DefaultHTTPTimeouts.WriteTimeout)
+		timeouts.WriteTimeout = rpc.DefaultHTTPTimeouts.WriteTimeout
+	}
+	if timeouts.IdleTimeout < time.Second {
+		log.Warn("Sanitizing invalid HTTP idle timeout", "provided", timeouts.IdleTimeout, "updated", rpc.DefaultHTTPTimeouts.IdleTimeout)
+		timeouts.IdleTimeout = rpc.DefaultHTTPTimeouts.IdleTimeout
+	}
 }
