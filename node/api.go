@@ -161,6 +161,9 @@ func (api *PrivateAdminAPI) StartRPC(host *string, port *int, cors *string, apis
 	if port == nil {
 		port = &api.node.config.HTTPPort
 	}
+	endpoint := fmt.Sprintf("%s:%d", *host, *port)
+
+	// TODO check if rpc allowed or something?
 
 	allowedOrigins := api.node.config.HTTPCors
 	if cors != nil {
@@ -186,7 +189,7 @@ func (api *PrivateAdminAPI) StartRPC(host *string, port *int, cors *string, apis
 		}
 	}
 
-	if err := api.node.startHTTP(fmt.Sprintf("%s:%d", *host, *port), api.node.rpcAPIs, modules, allowedOrigins, allowedVHosts, api.node.config.HTTPTimeouts, api.node.config.WSOrigins); err != nil {
+	if err := api.node.startHTTP(endpoint, api.node.rpcAPIs, modules, allowedOrigins, allowedVHosts, api.node.config.HTTPTimeouts, api.node.config.WSOrigins); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -223,6 +226,12 @@ func (api *PrivateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 	if port == nil {
 		port = &api.node.config.WSPort
 	}
+	endpoint := fmt.Sprintf("%s:%d", *host, *port)
+
+	if api.node.httpEndpoint[10:] == endpoint[10:] { // TODO MAKE SURE THIS WORKS!!!
+		api.node.serviceHandler.wsAllowed = true
+		return true, nil
+	}
 
 	origins := api.node.config.WSOrigins
 	if allowedOrigins != nil {
@@ -240,7 +249,7 @@ func (api *PrivateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 		}
 	}
 
-	if err := api.node.startWS(fmt.Sprintf("%s:%d", *host, *port), api.node.rpcAPIs, modules, origins, api.node.config.WSExposeAll); err != nil {
+	if err := api.node.startWS(endpoint, api.node.rpcAPIs, modules, origins, api.node.config.WSExposeAll); err != nil {
 		return false, err
 	}
 	return true, nil
