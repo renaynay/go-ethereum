@@ -1,3 +1,4 @@
+
 // Copyright 2018 The go-ethereum Authors
 // This file is part of go-ethereum.
 //
@@ -546,10 +547,11 @@ func signer(c *cli.Context) error {
 			utils.Fatalf("Could not register API: %w", err)
 		}
 
-		handler := node.NewHTTPHandlerStack(srv, cors, vhosts)
+		handler := new(node.ServiceHandler)
+		handler.NewHTTPHandlerStack(srv, cors, vhosts, []string{})
 		httpEndpoint := fmt.Sprintf("%s:%d", c.GlobalString(utils.RPCListenAddrFlag.Name), c.Int(rpcPortFlag.Name))
 		// start http server
-		listener, err := node.StartHTTPEndpoint(httpEndpoint, rpc.DefaultHTTPTimeouts, handler)
+		listener, err := node.StartHTTPEndpoint(httpEndpoint, rpc.DefaultHTTPTimeouts, handler.Handler)
 		if err != nil {
 			utils.Fatalf("Could not start RPC api: %v", err)
 		}
