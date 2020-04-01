@@ -53,20 +53,22 @@ type Node struct {
 	services     map[reflect.Type]Service // Currently running services
 
 	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
-	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
+	inprocHandler *rpc.Server // In-process RPC request Handler to process the API requests
 
 	ipcEndpoint string       // IPC endpoint to listen at (empty = IPC disabled)
 	ipcListener net.Listener // IPC RPC listener socket to serve API requests
-	ipcHandler  *rpc.Server  // IPC RPC request handler to process the API requests
+	ipcHandler  *rpc.Server  // IPC RPC request Handler to process the API requests
 
 	httpEndpoint  string       // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
 	httpWhitelist []string     // HTTP RPC modules to allow through this endpoint
 	httpListener  net.Listener // HTTP RPC listener socket to server API requests
-	httpHandler   *rpc.Server  // HTTP RPC request handler to process the API requests
+	httpHandler   *rpc.Server  // HTTP RPC request Handler to process the API requests
 
 	wsEndpoint string       // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
 	wsListener net.Listener // Websocket RPC listener socket to server API requests
-	wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
+	wsHandler  *rpc.Server  // Websocket RPC request Handler to process the API requests
+
+	serviceHandler *ServiceHandler // TODO
 
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
@@ -368,18 +370,22 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	if endpoint == "" {
 		return nil
 	}
-	// register apis and create handler stack
+	// register apis and create Handler stack
 	srv := rpc.NewServer()
 	err := RegisterApisFromWhitelist(apis, modules, srv, false)
 	if err != nil {
 		return err
 	}
-	handler := NewHTTPHandlerStack(srv, cors, vhosts)
-	// wrap handler in websocket handler only if websocket port is the same as http rpc
+
+	handler := new(ServiceHandler)
+	handler.rpcAllowed = true
+	// wrap Handler in websocket Handler only if websocket port is the same as http rpc
 	if n.httpEndpoint == n.wsEndpoint {
-		handler = NewWebsocketUpgradeHandler(handler, srv.WebsocketHandler(wsOrigins))
+		handler.wsAllowed = true
 	}
-	listener, err := StartHTTPEndpoint(endpoint, timeouts, handler)
+	handler.NewHTTPHandlerStack(srv, cors, vhosts, wsOrigins)
+
+	listener, err := StartHTTPEndpoint(endpoint, timeouts, handler.Handler)
 	if err != nil {
 		return err
 	}
@@ -393,6 +399,7 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	n.httpEndpoint = endpoint
 	n.httpListener = listener
 	n.httpHandler = srv
+	n.serviceHandler = handler
 
 	return nil
 }
@@ -419,12 +426,15 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 	}
 
 	srv := rpc.NewServer()
-	handler := srv.WebsocketHandler(wsOrigins)
+	handler := new(ServiceHandler)
+	// TODO is rpcAllowed?
+	handler.Handler = srv.WebsocketHandler(wsOrigins)
+
 	err := RegisterApisFromWhitelist(apis, modules, srv, exposeAll)
 	if err != nil {
 		return err
 	}
-	listener, err := startWSEndpoint(endpoint, handler)
+	listener, err := startWSEndpoint(endpoint, handler.Handler)
 	if err != nil {
 		return err
 	}
@@ -433,6 +443,7 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 	n.wsEndpoint = endpoint
 	n.wsListener = listener
 	n.wsHandler = srv
+	// TODO might have to add WS specific serviceHandler
 
 	return nil
 }
@@ -531,7 +542,7 @@ func (n *Node) Restart() error {
 	return nil
 }
 
-// Attach creates an RPC client attached to an in-process API handler.
+// Attach creates an RPC client attached to an in-process API Handler.
 func (n *Node) Attach() (*rpc.Client, error) {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
@@ -542,7 +553,7 @@ func (n *Node) Attach() (*rpc.Client, error) {
 	return rpc.DialInProc(n.inprocHandler), nil
 }
 
-// RPCHandler returns the in-process RPC request handler.
+// RPCHandler returns the in-process RPC request Handler.
 func (n *Node) RPCHandler() (*rpc.Server, error) {
 	n.lock.RLock()
 	defer n.lock.RUnlock()

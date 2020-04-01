@@ -23,7 +23,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/graph-gophers/graphql-go"
@@ -60,28 +59,28 @@ func (s *Service) APIs() []rpc.API { return nil }
 
 // Start is called after all services have been constructed and the networking
 // layer was also initialized to spawn any goroutines required by the service.
-func (s *Service) Start(server *p2p.Server) error {
-	var err error
-	s.handler, err = newHandler(s.backend)
-	if err != nil {
-		return err
-	}
-	if s.listener, err = net.Listen("tcp", s.endpoint); err != nil {
-		return err
-	}
-	// create handler stack and wrap the graphql handler
-	handler := node.NewHTTPHandlerStack(s.handler, s.cors, s.vhosts)
-	// make sure timeout values are meaningful
-	node.CheckTimeouts(&s.timeouts)
-	// create http server
-	httpSrv := &http.Server{
-		Handler:      handler,
-		ReadTimeout:  s.timeouts.ReadTimeout,
-		WriteTimeout: s.timeouts.WriteTimeout,
-		IdleTimeout:  s.timeouts.IdleTimeout,
-	}
-	go httpSrv.Serve(s.listener)
-	log.Info("GraphQL endpoint opened", "url", fmt.Sprintf("http://%s", s.endpoint))
+func (s *Service) Start(server *p2p.Server) error { // TODO UNCOMMENT
+	//var err error
+	//s.handler, err = newHandler(s.backend)
+	//if err != nil {
+	//	return err
+	//}
+	//if s.listener, err = net.Listen("tcp", s.endpoint); err != nil {
+	//	return err
+	//}
+	//// create handler stack and wrap the graphql handler
+	//handler := node.NewHTTPHandlerStack(s.handler, s.cors, s.vhosts)
+	//// make sure timeout values are meaningful
+	//node.CheckTimeouts(&s.timeouts)
+	//// create http server
+	//httpSrv := &http.Server{
+	//	Handler:      handler,
+	//	ReadTimeout:  s.timeouts.ReadTimeout,
+	//	WriteTimeout: s.timeouts.WriteTimeout,
+	//	IdleTimeout:  s.timeouts.IdleTimeout,
+	//}
+	//go httpSrv.Serve(s.listener)
+	//log.Info("GraphQL endpoint opened", "url", fmt.Sprintf("http://%s", s.endpoint))
 	return nil
 }
 

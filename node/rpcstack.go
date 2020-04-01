@@ -26,15 +26,23 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/rs/cors"
 )
 
+type ServiceHandler struct {
+	Handler    http.Handler
+	rpcAllowed bool
+	wsAllowed  bool
+}
+
 // NewHTTPHandlerStack returns wrapped http-related handlers
-func NewHTTPHandlerStack(srv http.Handler, cors []string, vhosts []string) http.Handler {
-	// Wrap the CORS-handler within a host-handler
+func (h *ServiceHandler) NewHTTPHandlerStack(srv *rpc.Server, cors []string, vhosts []string, wsOrigins []string) {
+	// Wrap the CORS-Handler within a host-Handler
 	handler := newCorsHandler(srv, cors)
 	handler = newVHostHandler(vhosts, handler)
-	return newGzipHandler(handler)
+	handler = newGzipHandler(handler)
+	h.Handler = h.NewWebsocketUpgradeHandler(handler, srv.WebsocketHandler(wsOrigins))
 }
 
 func newCorsHandler(srv http.Handler, allowedOrigins []string) http.Handler {
@@ -51,7 +59,7 @@ func newCorsHandler(srv http.Handler, allowedOrigins []string) http.Handler {
 	return c.Handler(srv)
 }
 
-// virtualHostHandler is a handler which validates the Host-header of incoming requests.
+// virtualHostHandler is a Handler which validates the Host-header of incoming requests.
 // Using virtual hosts can help prevent DNS rebinding attacks, where a 'random' domain name points to
 // the service ip address (but without CORS headers). By verifying the targeted virtual host, we can
 // ensure that it's a destination that the node operator has defined.
@@ -138,11 +146,11 @@ func newGzipHandler(next http.Handler) http.Handler {
 	})
 }
 
-// NewWebsocketUpgradeHandler returns a websocket handler that serves an incoming request only if it contains an upgrade
-// request to the websocket protocol. If not, serves the the request with the http handler.
-func NewWebsocketUpgradeHandler(h http.Handler, ws http.Handler) http.Handler {
+// NewWebsocketUpgradeHandler returns a websocket Handler that serves an incoming request only if it contains an upgrade
+// request to the websocket protocol. If not, serves the the request with the http Handler.
+func (srvHandler *ServiceHandler) NewWebsocketUpgradeHandler(h http.Handler, ws http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if isWebsocket(r) {
+		if isWebsocket(r) && srvHandler.wsAllowed {
 			ws.ServeHTTP(w, r)
 			log.Debug("serving websocket request")
 			return
