@@ -30,28 +30,33 @@ import (
 	"github.com/rs/cors"
 )
 
-type ServiceHandler struct {
+type HTTPHandler struct {
 	Handler    http.Handler
+
+	CorsAllowedOrigins []string
+	Vhosts             []string
+	WsOrigins          []string
+
 	rpcAllowed bool
 	wsAllowed  bool
 }
 
 // NewHTTPHandlerStack returns wrapped http-related handlers
-func (h *ServiceHandler) NewHTTPHandlerStack(srv *rpc.Server, cors []string, vhosts []string, wsOrigins []string) {
+func (hh *HTTPHandler) NewHTTPHandlerStack(srv *rpc.Server) {
 	// Wrap the CORS-Handler within a host-Handler
-	handler := newCorsHandler(srv, cors)
-	handler = newVHostHandler(vhosts, handler)
-	handler = newGzipHandler(handler)
-	h.Handler = h.NewWebsocketUpgradeHandler(handler, srv.WebsocketHandler(wsOrigins))
+	handler := hh.newCorsHandler(srv)
+	handler = hh.newVHostHandler(handler)
+	handler = hh.newGzipHandler(handler)
+	hh.Handler = hh.NewWebsocketUpgradeHandler(handler, srv.WebsocketHandler(hh.WsOrigins))
 }
 
-func newCorsHandler(srv http.Handler, allowedOrigins []string) http.Handler {
+func (hh *HTTPHandler) newCorsHandler(srv http.Handler) http.Handler {
 	// disable CORS support if user has not specified a custom CORS configuration
-	if len(allowedOrigins) == 0 {
+	if len(hh.CorsAllowedOrigins) == 0 {
 		return srv
 	}
 	c := cors.New(cors.Options{
-		AllowedOrigins: allowedOrigins,
+		AllowedOrigins: hh.CorsAllowedOrigins,
 		AllowedMethods: []string{http.MethodPost, http.MethodGet},
 		MaxAge:         600,
 		AllowedHeaders: []string{"*"},
@@ -68,9 +73,9 @@ type virtualHostHandler struct {
 	next   http.Handler
 }
 
-func newVHostHandler(vhosts []string, next http.Handler) http.Handler {
+func (hh *HTTPHandler) newVHostHandler(next http.Handler) http.Handler {
 	vhostMap := make(map[string]struct{})
-	for _, allowedHost := range vhosts {
+	for _, allowedHost := range hh.Vhosts {
 		vhostMap[strings.ToLower(allowedHost)] = struct{}{}
 	}
 	return &virtualHostHandler{vhostMap, next}
@@ -127,7 +132,7 @@ func (w *gzipResponseWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
-func newGzipHandler(next http.Handler) http.Handler {
+func (hh *HTTPHandler) newGzipHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			next.ServeHTTP(w, r)
@@ -148,9 +153,9 @@ func newGzipHandler(next http.Handler) http.Handler {
 
 // NewWebsocketUpgradeHandler returns a websocket Handler that serves an incoming request only if it contains an upgrade
 // request to the websocket protocol. If not, serves the the request with the http Handler.
-func (srvHandler *ServiceHandler) NewWebsocketUpgradeHandler(h http.Handler, ws http.Handler) http.Handler {
+func (hh *HTTPHandler) NewWebsocketUpgradeHandler(h http.Handler, ws http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if isWebsocket(r) && srvHandler.wsAllowed {
+		if isWebsocket(r) && hh.wsAllowed {
 			ws.ServeHTTP(w, r)
 			log.Debug("serving websocket request")
 			return

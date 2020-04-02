@@ -53,22 +53,22 @@ type Node struct {
 	services     map[reflect.Type]Service // Currently running services
 
 	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
-	inprocHandler *rpc.Server // In-process RPC request Handler to process the API requests
+	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
 
 	ipcEndpoint string       // IPC endpoint to listen at (empty = IPC disabled)
 	ipcListener net.Listener // IPC RPC listener socket to serve API requests
-	ipcHandler  *rpc.Server  // IPC RPC request Handler to process the API requests
+	ipcHandler  *rpc.Server  // IPC RPC request handler to process the API requests
 
 	httpEndpoint  string       // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
 	httpWhitelist []string     // HTTP RPC modules to allow through this endpoint
 	httpListener  net.Listener // HTTP RPC listener socket to server API requests
-	httpHandler   *rpc.Server  // HTTP RPC request Handler to process the API requests
+	httpHandler   *rpc.Server  // HTTP RPC request handler to process the API requests
 
 	wsEndpoint string       // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
 	wsListener net.Listener // Websocket RPC listener socket to server API requests
-	wsHandler  *rpc.Server  // Websocket RPC request Handler to process the API requests
+	wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
 
-	serviceHandler *ServiceHandler // TODO
+	serviceHandler *HTTPHandler // TODO
 
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
@@ -377,13 +377,17 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 		return err
 	}
 
-	handler := new(ServiceHandler)
-	handler.rpcAllowed = true
+	handler := &HTTPHandler{
+		rpcAllowed:         true,
+		CorsAllowedOrigins: cors,
+		Vhosts:             vhosts,
+		WsOrigins:          wsOrigins,
+	}
 	// wrap Handler in websocket Handler only if websocket port is the same as http rpc
 	if n.httpEndpoint == n.wsEndpoint {
 		handler.wsAllowed = true
 	}
-	handler.NewHTTPHandlerStack(srv, cors, vhosts, wsOrigins)
+	handler.NewHTTPHandlerStack(srv)
 
 	listener, err := StartHTTPEndpoint(endpoint, timeouts, handler.Handler)
 	if err != nil {
@@ -391,7 +395,7 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	}
 	n.log.Info("HTTP endpoint opened", "url", fmt.Sprintf("http://%v/", listener.Addr()),
 		"cors", strings.Join(cors, ","),
-		"vhosts", strings.Join(vhosts, ","))
+		"Vhosts", strings.Join(vhosts, ","))
 	if n.httpEndpoint == n.wsEndpoint {
 		n.log.Info("WebSocket endpoint opened", "url", fmt.Sprintf("ws://%v", listener.Addr()))
 	}
@@ -426,7 +430,7 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 	}
 
 	srv := rpc.NewServer()
-	handler := new(ServiceHandler)
+	handler := new(HTTPHandler)
 	// TODO is rpcAllowed?
 	handler.Handler = srv.WebsocketHandler(wsOrigins)
 
