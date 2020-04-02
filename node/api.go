@@ -228,11 +228,6 @@ func (api *PrivateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 	}
 	endpoint := fmt.Sprintf("%s:%d", *host, *port)
 
-	if api.node.httpEndpoint[10:] == endpoint[10:] { // TODO MAKE SURE THIS WORKS!!!
-		api.node.serviceHandler.wsAllowed = true
-		return true, nil
-	}
-
 	origins := api.node.config.WSOrigins
 	if allowedOrigins != nil {
 		origins = nil
@@ -247,6 +242,13 @@ func (api *PrivateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 		for _, m := range strings.Split(*apis, ",") {
 			modules = append(modules, strings.TrimSpace(m))
 		}
+	}
+
+	if api.node.httpEndpoint[10:] == endpoint[10:] { // TODO fix this. it is horrible.
+		api.node.serviceHandler.wsAllowed = true
+		api.node.serviceHandler.WsOrigins = origins
+		// TODO what about modules and rpcapis?
+		return true, nil
 	}
 
 	if err := api.node.startWS(endpoint, api.node.rpcAPIs, modules, origins, api.node.config.WSExposeAll); err != nil {
