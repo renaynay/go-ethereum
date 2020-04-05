@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -53,22 +54,23 @@ type Node struct {
 	services     map[reflect.Type]Service // Currently running services
 
 	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
-	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
+	inprocHandler *rpc.Server // In-process RPC request httpHandler to process the API requests
 
 	ipcEndpoint string       // IPC endpoint to listen at (empty = IPC disabled)
 	ipcListener net.Listener // IPC RPC listener socket to serve API requests
-	ipcHandler  *rpc.Server  // IPC RPC request handler to process the API requests
+	ipcHandler  *rpc.Server  // IPC RPC request httpHandler to process the API requests
 
 	httpEndpoint  string       // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
 	httpWhitelist []string     // HTTP RPC modules to allow through this endpoint
-	httpListener  net.Listener // HTTP RPC listener socket to server API requests
-	httpHandler   *rpc.Server  // HTTP RPC request handler to process the API requests
+	//httpListener  net.Listener // HTTP RPC listener socket to server API requests
+	//httpHandler   *rpc.Server  // HTTP RPC request httpHandler to process the API requests
+	httpHandler *HTTPHandler // TODO
 
 	wsEndpoint string       // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
-	wsListener net.Listener // Websocket RPC listener socket to server API requests
-	wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
+	//wsListener net.Listener // Websocket RPC listener socket to server API requests
+	//wsHandler  *rpc.Server  // Websocket RPC request httpHandler to process the API requests
+	wsHandler *HTTPHandler
 
-	serviceHandler *HTTPHandler // TODO
 
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
@@ -370,24 +372,23 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	if endpoint == "" {
 		return nil
 	}
-	// register apis and create Handler stack
-	srv := rpc.NewServer()
-	err := RegisterApisFromWhitelist(apis, modules, srv, false)
-	if err != nil {
-		return err
-	}
-
+	// create new handler
 	handler := &HTTPHandler{
-		rpcAllowed:         true,
+		Srv: rpc.NewServer(),
 		CorsAllowedOrigins: cors,
 		Vhosts:             vhosts,
 		WsOrigins:          wsOrigins,
 	}
+	// register apis and create Handler stack
+	err := RegisterApisFromWhitelist(apis, modules, handler.Srv, false)
+	if err != nil {
+		return err
+	}
 	// wrap Handler in websocket Handler only if websocket port is the same as http rpc
 	if n.httpEndpoint == n.wsEndpoint {
-		handler.wsAllowed = true
+		handler.WSAllowed = true
 	}
-	handler.NewHTTPHandlerStack(srv)
+	handler.NewHTTPHandlerStack()
 
 	listener, err := StartHTTPEndpoint(endpoint, timeouts, handler.Handler)
 	if err != nil {
@@ -401,24 +402,30 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	}
 	// All listeners booted successfully
 	n.httpEndpoint = endpoint
-	n.httpListener = listener
-	n.httpHandler = srv
-	n.serviceHandler = handler
+	n.httpHandler = handler
+	port, err := strconv.Atoi(endpoint[10:])
+	if err != nil {
+		return err // TODO should it return ?
+	}
+	n.httpHandler.Port = port
+	//n.httpListener = listener
+	//n.httpHandler = srv
+	//n.httpHandler = handler
 
 	return nil
 }
 
 // stopHTTP terminates the HTTP RPC endpoint.
 func (n *Node) stopHTTP() {
-	if n.httpListener != nil {
-		url := fmt.Sprintf("http://%v/", n.httpListener.Addr())
-		n.httpListener.Close()
-		n.httpListener = nil
+	if n.httpHandler.Listener != nil {
+		url := fmt.Sprintf("http://%v/", n.httpHandler.Listener.Addr())
+		n.httpHandler.Listener.Close()
+		n.httpHandler.Listener = nil
 		n.log.Info("HTTP endpoint closed", "url", url)
 	}
-	if n.httpHandler != nil {
-		n.httpHandler.Stop()
-		n.httpHandler = nil
+	if n.httpHandler.Srv != nil {
+		n.httpHandler.Srv.Stop()
+		n.httpHandler.Srv = nil
 	}
 }
 
@@ -430,11 +437,14 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 	}
 
 	srv := rpc.NewServer()
-	handler := new(HTTPHandler)
+	handler := &HTTPHandler{
+		WSAllowed: true,
+		Srv: srv,
+		Handler: srv.WebsocketHandler(wsOrigins),
+	}
 	// TODO is rpcAllowed?
-	handler.Handler = srv.WebsocketHandler(wsOrigins)
 
-	err := RegisterApisFromWhitelist(apis, modules, srv, exposeAll)
+	err := RegisterApisFromWhitelist(apis, modules, handler.Srv, exposeAll)
 	if err != nil {
 		return err
 	}
@@ -445,24 +455,36 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 	n.log.Info("WebSocket endpoint opened", "url", fmt.Sprintf("ws://%s", listener.Addr()))
 	// All listeners booted successfully
 	n.wsEndpoint = endpoint
-	n.wsListener = listener
-	n.wsHandler = srv
-	// TODO might have to add WS specific serviceHandler
+	n.wsHandler = handler
+	n.wsHandler.Listener = listener
+
+	port, err := strconv.Atoi(endpoint[10:])
+	if err != nil {
+		return err
+	}
+
+	n.wsHandler.Port = port
+	// TODO might have to add WS specific httpHandler
 
 	return nil
 }
 
 // stopWS terminates the websocket RPC endpoint.
-func (n *Node) stopWS() {
-	if n.wsListener != nil {
-		n.wsListener.Close()
-		n.wsListener = nil
+func (n *Node) stopWS() { // TODO this function should not be called if WS independent server isn't started
+	if n.wsHandler == nil {
+		return
+	}
+
+	if n.wsHandler.Listener != nil {
+		n.wsHandler.Listener.Close()
+		n.wsHandler.Listener = nil
 
 		n.log.Info("WebSocket endpoint closed", "url", fmt.Sprintf("ws://%s", n.wsEndpoint))
 	}
-	if n.wsHandler != nil {
-		n.wsHandler.Stop()
-		n.wsHandler = nil
+
+	if n.wsHandler.Srv != nil {
+		n.wsHandler.Srv.Stop()
+		n.wsHandler.Srv = nil
 	}
 }
 
@@ -622,8 +644,8 @@ func (n *Node) HTTPEndpoint() string {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	if n.httpListener != nil {
-		return n.httpListener.Addr().String()
+	if n.httpHandler.Listener != nil {
+		return n.httpHandler.Listener.Addr().String()
 	}
 	return n.httpEndpoint
 }
@@ -633,8 +655,8 @@ func (n *Node) WSEndpoint() string {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	if n.wsListener != nil {
-		return n.wsListener.Addr().String()
+	if n.wsHandler.Listener != nil {
+		return n.wsHandler.Listener.Addr().String()
 	}
 	return n.wsEndpoint
 }
