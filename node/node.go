@@ -389,7 +389,7 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 		handler.WSAllowed = true
 	}
 
-	handler.NewHTTPHandlerStack()
+	handler.NewHTTPHandlerStack(handler.Srv)
 
 	listener, err := StartHTTPEndpoint(endpoint, timeouts, handler)
 	if err != nil {
@@ -404,7 +404,7 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	// All listeners booted successfully
 	n.httpEndpoint = endpoint
 	n.httpHandler = handler
-	port, err := strconv.Atoi(endpoint[10:])
+	port, err := strconv.Atoi(endpoint[10:]) // TODO need a better way to do this?
 	if err != nil {
 		return err // TODO should it return ?
 	}
@@ -462,7 +462,7 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 	n.wsHandler = handler
 	n.wsHandler.Listener = listener
 
-	port, err := strconv.Atoi(endpoint[10:])
+	port, err := strconv.Atoi(endpoint[10:]) // TODO need a better way to do this?
 	if err != nil {
 		return err
 	}

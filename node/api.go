@@ -143,7 +143,7 @@ func (api *PrivateAdminAPI) PeerEvents(ctx context.Context) (*rpc.Subscription, 
 }
 
 // StartRPC starts the HTTP RPC API server.
-func (api *PrivateAdminAPI) StartRPC(host *string, port *int, cors *string, apis *string, vhosts *string) (bool, error) {
+func (api *PrivateAdminAPI) StartRPC(host *string, port *int, cors *string, apis *string, vhosts *string) (bool, error) { // TODO should an RPC server be able to be started on an existing WS server?
 	api.node.lock.Lock()
 	defer api.node.lock.Unlock()
 
@@ -162,8 +162,6 @@ func (api *PrivateAdminAPI) StartRPC(host *string, port *int, cors *string, apis
 		port = &api.node.config.HTTPPort
 	}
 	endpoint := fmt.Sprintf("%s:%d", *host, *port)
-
-	// TODO check if rpc allowed or something?
 
 	allowedOrigins := api.node.config.HTTPCors
 	if cors != nil {
