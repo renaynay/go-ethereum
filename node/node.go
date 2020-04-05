@@ -61,7 +61,7 @@ type Node struct {
 	ipcHandler  *rpc.Server  // IPC RPC request httpHandler to process the API requests
 
 	httpEndpoint  string       // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
-	httpWhitelist []string     // HTTP RPC modules to allow through this endpoint
+	//httpWhitelist []string     // HTTP RPC modules to allow through this endpoint
 	//httpListener  net.Listener // HTTP RPC listener socket to server API requests
 	//httpHandler   *rpc.Server  // HTTP RPC request httpHandler to process the API requests
 	httpHandler *HTTPHandler // TODO

@@ -181,7 +181,7 @@ func (api *PrivateAdminAPI) StartRPC(host *string, port *int, cors *string, apis
 		}
 	}
 
-	modules := api.node.httpWhitelist
+	modules := api.node.config.HTTPModules // TODO where to take the whitelist from ?
 	if apis != nil {
 		modules = nil
 		for _, m := range strings.Split(*apis, ",") {
