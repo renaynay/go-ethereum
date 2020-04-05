@@ -665,7 +665,7 @@ func (s *Server) NodeRPC(w http.ResponseWriter, req *http.Request) {
 	node.ServeRPC(conn)
 }
 
-// ServeHTTP implements the http.Handler interface by delegating to the
+// ServeHTTP implements the http.handler interface by delegating to the
 // underlying httprouter.Router
 func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	s.router.ServeHTTP(w, req)

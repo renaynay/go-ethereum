@@ -31,28 +31,29 @@ import (
 )
 
 type HTTPHandler struct {
-	Handler http.Handler
+	handler http.Handler
 	Srv     *rpc.Server
 
 	Port int
+
+	Whitelist []string
 
 	CorsAllowedOrigins []string
 	Vhosts             []string
 	WsOrigins          []string
 
 	Listener  net.Listener
-	Whitelist []string
 
 	WSAllowed  bool
+	RPCEnabled bool
 }
 
 // NewHTTPHandlerStack returns wrapped http-related handlers
 func (hh *HTTPHandler) NewHTTPHandlerStack() {
-	// Wrap the CORS-Handler within a host-Handler
+	// Wrap the CORS-handler within a host-handler
 	handler := hh.newCorsHandler(hh.Srv)
 	handler = hh.newVHostHandler(handler)
 	handler = hh.newGzipHandler(handler)
-	hh.Handler = hh.NewWebsocketUpgradeHandler(handler, hh.Srv.WebsocketHandler(hh.WsOrigins))
 }
 
 func (hh *HTTPHandler) newCorsHandler(srv http.Handler) http.Handler {
@@ -69,7 +70,19 @@ func (hh *HTTPHandler) newCorsHandler(srv http.Handler) http.Handler {
 	return c.Handler(srv)
 }
 
-// virtualHostHandler is a Handler which validates the Host-header of incoming requests.
+func (hh *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if hh.WSAllowed && isWebsocket(r) {
+		hh.Srv.WebsocketHandler(hh.WsOrigins).ServeHTTP(w, r)
+		log.Debug("serving websocket request")
+
+		return
+	}
+	if hh.RPCEnabled {
+		hh.handler.ServeHTTP(w, r)
+	}
+}
+
+// virtualHostHandler is a handler which validates the Host-header of incoming requests.
 // Using virtual hosts can help prevent DNS rebinding attacks, where a 'random' domain name points to
 // the service ip address (but without CORS headers). By verifying the targeted virtual host, we can
 // ensure that it's a destination that the node operator has defined.
@@ -86,7 +99,7 @@ func (hh *HTTPHandler) newVHostHandler(next http.Handler) http.Handler {
 	return &virtualHostHandler{vhostMap, next}
 }
 
-// ServeHTTP serves JSON-RPC requests over HTTP, implements http.Handler
+// ServeHTTP serves JSON-RPC requests over HTTP, implements http.handler
 func (h *virtualHostHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// if r.Host is not set, we can continue serving since a browser would set the Host header
 	if r.Host == "" {
@@ -156,19 +169,8 @@ func (hh *HTTPHandler) newGzipHandler(next http.Handler) http.Handler {
 	})
 }
 
-// NewWebsocketUpgradeHandler returns a websocket Handler that serves an incoming request only if it contains an upgrade
-// request to the websocket protocol. If not, serves the the request with the http Handler.
-func (hh *HTTPHandler) NewWebsocketUpgradeHandler(h http.Handler, ws http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if isWebsocket(r) && hh.WSAllowed {
-			ws.ServeHTTP(w, r)
-			log.Debug("serving websocket request")
-			return
-		}
-
-		h.ServeHTTP(w, r)
-	})
-}
+// NewWebsocketUpgradeHandler returns a websocket handler that serves an incoming request only if it contains an upgrade
+// request to the websocket protocol. If not, serves the the request with the http handler.
 
 // isWebsocket checks the header of an http request for a websocket upgrade request.
 func isWebsocket(r *http.Request) bool {

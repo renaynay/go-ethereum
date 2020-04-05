@@ -24,7 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
-// Handler returns a log handler which logs to the unit test log of t.
+// handler returns a log handler which logs to the unit test log of t.
 func Handler(t *testing.T, level log.Lvl) log.Handler {
 	return log.LvlFilterHandler(level, &handler{t, log.TerminalFormat(false)})
 }

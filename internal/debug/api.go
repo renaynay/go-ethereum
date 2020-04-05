@@ -37,12 +37,12 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
-// Handler is the global debugging handler.
+// handler is the global debugging handler.
 var Handler = new(HandlerT)
 
 // HandlerT implements the debugging API.
 // Do not create values of this type, use the one
-// in the Handler variable instead.
+// in the handler variable instead.
 type HandlerT struct {
 	mu        sync.Mutex
 	cpuW      io.WriteCloser

@@ -65,10 +65,10 @@ This will output a log line that includes the path context that is attached to t
 
 Handlers
 
-The Handler interface defines where log lines are printed to and how they are formated. Handler is a
+The handler interface defines where log lines are printed to and how they are formated. handler is a
 single interface that is inspired by net/http's handler interface:
 
-    type Handler interface {
+    type handler interface {
         Log(r *Record) error
     }
 
@@ -123,15 +123,15 @@ documents the full list of formatting verbs and modifiers available.
 
 Custom Handlers
 
-The Handler interface is so simple that it's also trivial to write your own. Let's create an
+The handler interface is so simple that it's also trivial to write your own. Let's create an
 example handler which tries to write to one handler, but if that fails it falls back to
 writing to another handler and includes the error that it encountered when trying to write
 to the primary. This might be useful when trying to log over a network socket, but if that
 fails you want to log those records to a file on disk.
 
     type BackupHandler struct {
-        Primary Handler
-        Secondary Handler
+        Primary handler
+        Secondary handler
     }
 
     func (h *BackupHandler) Log (r *Record) error {
@@ -152,7 +152,7 @@ Sometimes, you want to log values that are extremely expensive to compute, but y
 the price of computing them if you haven't turned up your logging level to a high level of detail.
 
 This package provides a simple type to annotate a logging operation that you want to be evaluated
-lazily, just when it is about to be logged, so that it would not be evaluated if an upstream Handler
+lazily, just when it is about to be logged, so that it would not be evaluated if an upstream handler
 filters it out. Just wrap any function which takes no arguments with the log.Lazy type. For example:
 
     func factorRSAKey() (factors []int) {
@@ -211,7 +211,7 @@ to return errors. Instead, log15 handles errors by making these guarantees to yo
 - Any log record containing an error will include the context key LOG15_ERROR, enabling you to easily
 (and if you like, automatically) detect if any of your logging calls are passing bad values.
 
-Understanding this, you might wonder why the Handler interface can return an error value in its Log method. Handlers
+Understanding this, you might wonder why the handler interface can return an error value in its Log method. Handlers
 are encouraged to return errors only if they fail to write their log records out to an external source like if the
 syslog daemon is not responding. This allows the construction of useful handlers which cope with those failures
 like the FailoverHandler.
@@ -300,7 +300,7 @@ we'll still be able to see the tab's current url in the log messages.
 
 Must
 
-For all Handler functions which can return an error, there is a version of that
+For all handler functions which can return an error, there is a version of that
 function which will return no error but panics on failure. They are all available
 on the Must object. For example:
 

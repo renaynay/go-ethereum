@@ -58,6 +58,8 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
+// TODO FIX CLEF
+
 const legalWarning = `
 WARNING!
 
