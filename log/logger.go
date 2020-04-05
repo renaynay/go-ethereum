@@ -105,7 +105,7 @@ type RecordKeyNames struct {
 	Ctx  string
 }
 
-// A Logger writes key/value pairs to a handler
+// A Logger writes key/value pairs to a Handler
 type Logger interface {
 	// New returns a new Logger that has this logger's context plus the given context
 	New(ctx ...interface{}) Logger

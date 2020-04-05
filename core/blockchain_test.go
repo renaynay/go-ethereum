@@ -1875,7 +1875,7 @@ func testSideImport(t *testing.T, numCanonBlocksInSidechain, blocksBetweenCommon
 func TestPrunedImportSide(t *testing.T) {
 	//glogger := log.NewGlogHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(false)))
 	//glogger.Verbosity(3)
-	//log.Root().SetHandler(log.handler(glogger))
+	//log.Root().SetHandler(log.Handler(glogger))
 	testSideImport(t, 3, 3)
 	testSideImport(t, 3, -3)
 	testSideImport(t, 10, 0)

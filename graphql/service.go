@@ -37,7 +37,7 @@ type Service struct {
 	vhosts   []string         // Recognised vhosts
 	timeouts rpc.HTTPTimeouts // Timeout settings for HTTP requests.
 	backend  ethapi.Backend   // The backend that queries will operate on.
-	handler  http.Handler     // The `http.handler` used to answer queries.
+	handler  http.Handler     // The `http.Handler` used to answer queries.
 	listener net.Listener     // The listening socket.
 }
 
@@ -89,7 +89,7 @@ func (s *Service) Start(server *p2p.Server) error {
 	return nil
 }
 
-// newHandler returns a new `http.handler` that will answer GraphQL queries.
+// newHandler returns a new `http.Handler` that will answer GraphQL queries.
 // It additionally exports an interactive query browser on the / endpoint.
 func newHandler(backend ethapi.Backend) (http.Handler, error) {
 	q := Resolver{backend}
