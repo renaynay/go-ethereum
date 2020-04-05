@@ -44,17 +44,18 @@ type HTTPHandler struct {
 
 	Listener  net.Listener
 
+	RPCAllowed bool
 	WSAllowed  bool
-	RPCEnabled bool
 }
 
 // NewHTTPHandlerStack returns wrapped http-related handlers
-func (hh *HTTPHandler) NewHTTPHandlerStack() {
+func (hh *HTTPHandler) NewHTTPHandlerStack(prependHandler http.Handler) {
 	// Wrap the CORS-handler within a host-handler
-	handler := hh.newCorsHandler(hh.Srv)
+	handler := hh.newCorsHandler(prependHandler)
 	handler = hh.newVHostHandler(handler)
 	handler = hh.newGzipHandler(handler)
 }
+
 
 func (hh *HTTPHandler) newCorsHandler(srv http.Handler) http.Handler {
 	// disable CORS support if user has not specified a custom CORS configuration
@@ -70,6 +71,7 @@ func (hh *HTTPHandler) newCorsHandler(srv http.Handler) http.Handler {
 	return c.Handler(srv)
 }
 
+// TODO document ?
 func (hh *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if hh.WSAllowed && isWebsocket(r) {
 		hh.Srv.WebsocketHandler(hh.WsOrigins).ServeHTTP(w, r)
@@ -77,7 +79,7 @@ func (hh *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-	if hh.RPCEnabled {
+	if hh.RPCAllowed {
 		hh.handler.ServeHTTP(w, r)
 	}
 }

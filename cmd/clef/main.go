@@ -552,7 +552,7 @@ func signer(c *cli.Context) error {
 			CorsAllowedOrigins: cors,
 			Srv: srv,
 		}
-		handler.NewHTTPHandlerStack()
+		handler.NewHTTPHandlerStack(handler.Srv)
 
 		httpEndpoint := fmt.Sprintf("%s:%d", c.GlobalString(utils.RPCListenAddrFlag.Name), c.Int(rpcPortFlag.Name))
 		// start http server
