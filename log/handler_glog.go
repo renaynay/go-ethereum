@@ -50,7 +50,7 @@ type GlogHandler struct {
 }
 
 // NewGlogHandler creates a new log handler with filtering functionality similar
-// to Google's glog logger. The returned handler implements handler.
+// to Google's glog logger. The returned handler implements Handler.
 func NewGlogHandler(h Handler) *GlogHandler {
 	return &GlogHandler{
 		origin: h,
@@ -176,7 +176,7 @@ func (h *GlogHandler) BacktraceAt(location string) error {
 	return nil
 }
 
-// Log implements handler.Log, filtering a log record through the global, local
+// Log implements Handler.Log, filtering a log record through the global, local
 // and backtrace filters, finally emitting it if either allow it through.
 func (h *GlogHandler) Log(r *Record) error {
 	// If backtracing is requested, check whether this is the callsite

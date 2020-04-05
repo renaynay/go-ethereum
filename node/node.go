@@ -54,21 +54,21 @@ type Node struct {
 	services     map[reflect.Type]Service // Currently running services
 
 	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
-	inprocHandler *rpc.Server // In-process RPC request httpHandler to process the API requests
+	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
 
 	ipcEndpoint string       // IPC endpoint to listen at (empty = IPC disabled)
 	ipcListener net.Listener // IPC RPC listener socket to serve API requests
-	ipcHandler  *rpc.Server  // IPC RPC request httpHandler to process the API requests
+	ipcHandler  *rpc.Server  // IPC RPC request handler to process the API requests
 
 	httpEndpoint  string       // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
 	//httpWhitelist []string     // HTTP RPC modules to allow through this endpoint
 	//httpListener  net.Listener // HTTP RPC listener socket to server API requests
-	//httpHandler   *rpc.Server  // HTTP RPC request httpHandler to process the API requests
+	//httpHandler   *rpc.Server  // HTTP RPC request handler to process the API requests
 	httpHandler *HTTPHandler // TODO
 
 	wsEndpoint string       // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
 	//wsListener net.Listener // Websocket RPC listener socket to server API requests
-	//wsHandler  *rpc.Server  // Websocket RPC request httpHandler to process the API requests
+	//wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
 	wsHandler *HTTPHandler // TODO
 
 

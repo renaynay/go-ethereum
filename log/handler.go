@@ -11,7 +11,7 @@ import (
 	"github.com/go-stack/stack"
 )
 
-// handler defines where and how log records are written.
+// Handler defines where and how log records are written.
 // A Logger prints its log records by writing to a handler.
 // Handlers are composable, providing you great flexibility in combining
 // them to achieve the logging structure that suits your applications.
@@ -19,7 +19,7 @@ type Handler interface {
 	Log(r *Record) error
 }
 
-// FuncHandler returns a handler that logs records with the given
+// FuncHandler returns a Handler that logs records with the given
 // function.
 func FuncHandler(fn func(r *Record) error) Handler {
 	return funcHandler(fn)
@@ -82,7 +82,7 @@ func NetHandler(network, addr string, fmtr Format) (Handler, error) {
 }
 
 // XXX: closingHandler is essentially unused at the moment
-// it's meant for a future time when the handler interface supports
+// it's meant for a future time when the Handler interface supports
 // a possible Close() operation
 type closingHandler struct {
 	io.WriteCloser
@@ -93,7 +93,7 @@ func (h *closingHandler) Close() error {
 	return h.WriteCloser.Close()
 }
 
-// CallerFileHandler returns a handler that adds the line number and file of
+// CallerFileHandler returns a Handler that adds the line number and file of
 // the calling function to the context with key "caller".
 func CallerFileHandler(h Handler) Handler {
 	return FuncHandler(func(r *Record) error {
@@ -102,7 +102,7 @@ func CallerFileHandler(h Handler) Handler {
 	})
 }
 
-// CallerFuncHandler returns a handler that adds the calling function name to
+// CallerFuncHandler returns a Handler that adds the calling function name to
 // the context with key "fn".
 func CallerFuncHandler(h Handler) Handler {
 	return FuncHandler(func(r *Record) error {
@@ -116,7 +116,7 @@ func formatCall(format string, c stack.Call) string {
 	return fmt.Sprintf(format, c)
 }
 
-// CallerStackHandler returns a handler that adds a stack trace to the context
+// CallerStackHandler returns a Handler that adds a stack trace to the context
 // with key "stack". The stack trace is formated as a space separated list of
 // call sites inside matching []'s. The most recent call site is listed first.
 // Each call site is formatted according to format. See the documentation of
@@ -131,8 +131,8 @@ func CallerStackHandler(format string, h Handler) Handler {
 	})
 }
 
-// FilterHandler returns a handler that only writes records to the
-// wrapped handler if the given function evaluates true. For example,
+// FilterHandler returns a Handler that only writes records to the
+// wrapped Handler if the given function evaluates true. For example,
 // to only log records where the 'err' key is not nil:
 //
 //    logger.SetHandler(FilterHandler(func(r *Record) bool {
@@ -153,8 +153,8 @@ func FilterHandler(fn func(r *Record) bool, h Handler) Handler {
 	})
 }
 
-// MatchFilterHandler returns a handler that only writes records
-// to the wrapped handler if the given key in the logged
+// MatchFilterHandler returns a Handler that only writes records
+// to the wrapped Handler if the given key in the logged
 // context matches the value. For example, to only log records
 // from your ui package:
 //
@@ -180,9 +180,9 @@ func MatchFilterHandler(key string, value interface{}, h Handler) Handler {
 	}, h)
 }
 
-// LvlFilterHandler returns a handler that only writes
+// LvlFilterHandler returns a Handler that only writes
 // records which are less than the given verbosity
-// level to the wrapped handler. For example, to only
+// level to the wrapped Handler. For example, to only
 // log Error/Crit records:
 //
 //     log.LvlFilterHandler(log.LvlError, log.StdoutHandler)
@@ -270,7 +270,7 @@ func BufferedHandler(bufSize int, h Handler) Handler {
 // LazyHandler writes all values to the wrapped handler after evaluating
 // any lazy functions in the record's context. It is already wrapped
 // around StreamHandler and SyslogHandler in this library, you'll only need
-// it if you write your own handler.
+// it if you write your own Handler.
 func LazyHandler(h Handler) Handler {
 	return FuncHandler(func(r *Record) error {
 		// go through the values (odd indices) and reassign
@@ -336,8 +336,8 @@ func DiscardHandler() Handler {
 	})
 }
 
-// Must provides the following handler creation functions
-// which instead of returning an error parameter only return a handler
+// Must provides the following Handler creation functions
+// which instead of returning an error parameter only return a Handler
 // and panic on failure: FileHandler, NetHandler, SyslogHandler, SyslogNetHandler
 var Must muster
 

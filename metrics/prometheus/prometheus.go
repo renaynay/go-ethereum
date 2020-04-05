@@ -26,7 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 )
 
-// handler returns an HTTP handler which dump metrics in Prometheus format.
+// Handler returns an HTTP handler which dump metrics in Prometheus format.
 func Handler(reg metrics.Registry) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Gather and pre-sort the metrics to avoid random listings
