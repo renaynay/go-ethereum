@@ -226,7 +226,6 @@ func (api *PrivateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 	if port == nil {
 		port = &api.node.config.WSPort
 	}
-	endpoint := fmt.Sprintf("%s:%d", *host, *port)
 
 	origins := api.node.config.WSOrigins
 	if allowedOrigins != nil {
@@ -244,14 +243,18 @@ func (api *PrivateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 		}
 	}
 
-	if api.node.httpEndpoint[10:] == endpoint[10:] { // TODO fix this. it is horrible.
-		api.node.serviceHandler.wsAllowed = true
-		api.node.serviceHandler.WsOrigins = origins
-		// TODO what about modules and rpcapis?
+	if api.node.httpHandler.Port == *port {
+		api.node.httpHandler.WSAllowed = true
+		api.node.httpHandler.WsOrigins = origins
+		// register apis
+		err := RegisterApisFromWhitelist(api.node.rpcAPIs, modules, api.node.httpHandler.Srv, api.node.config.WSExposeAll)// TODO what about modules and rpcapis?
+		if err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 
-	if err := api.node.startWS(endpoint, api.node.rpcAPIs, modules, origins, api.node.config.WSExposeAll); err != nil {
+	if err := api.node.startWS(fmt.Sprintf("%s:%d", *host, *port), api.node.rpcAPIs, modules, origins, api.node.config.WSExposeAll); err != nil {
 		return false, err
 	}
 	return true, nil

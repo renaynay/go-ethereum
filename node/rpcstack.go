@@ -31,23 +31,28 @@ import (
 )
 
 type HTTPHandler struct {
-	Handler    http.Handler
+	Handler http.Handler
+	Srv     *rpc.Server
+
+	Port int
 
 	CorsAllowedOrigins []string
 	Vhosts             []string
 	WsOrigins          []string
 
-	rpcAllowed bool
-	wsAllowed  bool
+	Listener  net.Listener
+	Whitelist []string
+
+	WSAllowed  bool
 }
 
 // NewHTTPHandlerStack returns wrapped http-related handlers
-func (hh *HTTPHandler) NewHTTPHandlerStack(srv *rpc.Server) {
+func (hh *HTTPHandler) NewHTTPHandlerStack() {
 	// Wrap the CORS-Handler within a host-Handler
-	handler := hh.newCorsHandler(srv)
+	handler := hh.newCorsHandler(hh.Srv)
 	handler = hh.newVHostHandler(handler)
 	handler = hh.newGzipHandler(handler)
-	hh.Handler = hh.NewWebsocketUpgradeHandler(handler, srv.WebsocketHandler(hh.WsOrigins))
+	hh.Handler = hh.NewWebsocketUpgradeHandler(handler, hh.Srv.WebsocketHandler(hh.WsOrigins))
 }
 
 func (hh *HTTPHandler) newCorsHandler(srv http.Handler) http.Handler {
@@ -155,7 +160,7 @@ func (hh *HTTPHandler) newGzipHandler(next http.Handler) http.Handler {
 // request to the websocket protocol. If not, serves the the request with the http Handler.
 func (hh *HTTPHandler) NewWebsocketUpgradeHandler(h http.Handler, ws http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if isWebsocket(r) && hh.wsAllowed {
+		if isWebsocket(r) && hh.WSAllowed {
 			ws.ServeHTTP(w, r)
 			log.Debug("serving websocket request")
 			return
