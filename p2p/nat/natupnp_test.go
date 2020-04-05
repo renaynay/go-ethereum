@@ -194,7 +194,7 @@ type fakeIGD struct {
 	httpResps map[string]string
 }
 
-// httpu.Handler
+// httpu.handler
 func (dev *fakeIGD) ServeMessage(r *http.Request) {
 	dev.t.Logf(`HTTPU request %s %s`, r.Method, r.RequestURI)
 	conn, err := net.Dial("udp4", r.RemoteAddr)
@@ -206,7 +206,7 @@ func (dev *fakeIGD) ServeMessage(r *http.Request) {
 	io.WriteString(conn, dev.replaceListenAddr(dev.ssdpResp))
 }
 
-// http.Handler
+// http.handler
 func (dev *fakeIGD) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if resp, ok := dev.httpResps[r.Method+" "+r.RequestURI]; ok {
 		dev.t.Logf(`HTTP request "%s %s" --> %d`, r.Method, r.RequestURI, 200)

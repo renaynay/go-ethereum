@@ -58,6 +58,8 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
+// TODO FIX CLEF
+
 const legalWarning = `
 WARNING!
 
@@ -540,17 +542,21 @@ func signer(c *cli.Context) error {
 		cors := splitAndTrim(c.GlobalString(utils.RPCCORSDomainFlag.Name))
 
 		srv := rpc.NewServer()
-
 		err := node.RegisterApisFromWhitelist(rpcAPI, []string{"account"}, srv, false)
 		if err != nil {
 			utils.Fatalf("Could not register API: %w", err)
 		}
 
-		handler := new(node.HTTPHandler)
-		handler.NewHTTPHandlerStack(srv, cors, vhosts, []string{})
+		handler := &node.HTTPHandler{
+			Vhosts: vhosts,
+			CorsAllowedOrigins: cors,
+			Srv: srv,
+		}
+		handler.NewHTTPHandlerStack()
+
 		httpEndpoint := fmt.Sprintf("%s:%d", c.GlobalString(utils.RPCListenAddrFlag.Name), c.Int(rpcPortFlag.Name))
 		// start http server
-		listener, err := node.StartHTTPEndpoint(httpEndpoint, rpc.DefaultHTTPTimeouts, handler.Handler)
+		listener, err := node.StartHTTPEndpoint(httpEndpoint, rpc.DefaultHTTPTimeouts, handler)
 		if err != nil {
 			utils.Fatalf("Could not start RPC api: %v", err)
 		}

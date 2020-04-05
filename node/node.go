@@ -69,7 +69,7 @@ type Node struct {
 	wsEndpoint string       // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
 	//wsListener net.Listener // Websocket RPC listener socket to server API requests
 	//wsHandler  *rpc.Server  // Websocket RPC request httpHandler to process the API requests
-	wsHandler *HTTPHandler
+	wsHandler *HTTPHandler // TODO
 
 
 	stop chan struct{} // Channel to wait for termination notifications
@@ -379,18 +379,19 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 		Vhosts:             vhosts,
 		WsOrigins:          wsOrigins,
 	}
-	// register apis and create Handler stack
+	// register apis and create handler stack
 	err := RegisterApisFromWhitelist(apis, modules, handler.Srv, false)
 	if err != nil {
 		return err
 	}
-	// wrap Handler in websocket Handler only if websocket port is the same as http rpc
+	// wrap handler in websocket handler only if websocket port is the same as http rpc
 	if n.httpEndpoint == n.wsEndpoint {
 		handler.WSAllowed = true
 	}
+
 	handler.NewHTTPHandlerStack()
 
-	listener, err := StartHTTPEndpoint(endpoint, timeouts, handler.Handler)
+	listener, err := StartHTTPEndpoint(endpoint, timeouts, handler)
 	if err != nil {
 		return err
 	}
@@ -416,7 +417,10 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 }
 
 // stopHTTP terminates the HTTP RPC endpoint.
-func (n *Node) stopHTTP() {
+func (n *Node) stopHTTP() { // TODO make it so that this isn't called if no http server has been started
+	if n.httpHandler == nil {
+		return
+	}
 	if n.httpHandler.Listener != nil {
 		url := fmt.Sprintf("http://%v/", n.httpHandler.Listener.Addr())
 		n.httpHandler.Listener.Close()
@@ -440,15 +444,15 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 	handler := &HTTPHandler{
 		WSAllowed: true,
 		Srv: srv,
-		Handler: srv.WebsocketHandler(wsOrigins),
 	}
+
 	// TODO is rpcAllowed?
 
 	err := RegisterApisFromWhitelist(apis, modules, handler.Srv, exposeAll)
 	if err != nil {
 		return err
 	}
-	listener, err := startWSEndpoint(endpoint, handler.Handler)
+	listener, err := startWSEndpoint(endpoint, handler)
 	if err != nil {
 		return err
 	}
@@ -464,7 +468,6 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 	}
 
 	n.wsHandler.Port = port
-	// TODO might have to add WS specific httpHandler
 
 	return nil
 }
@@ -568,7 +571,7 @@ func (n *Node) Restart() error {
 	return nil
 }
 
-// Attach creates an RPC client attached to an in-process API Handler.
+// Attach creates an RPC client attached to an in-process API handler.
 func (n *Node) Attach() (*rpc.Client, error) {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
@@ -579,7 +582,7 @@ func (n *Node) Attach() (*rpc.Client, error) {
 	return rpc.DialInProc(n.inprocHandler), nil
 }
 
-// RPCHandler returns the in-process RPC request Handler.
+// RPCHandler returns the in-process RPC request handler.
 func (n *Node) RPCHandler() (*rpc.Server, error) {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
