@@ -245,7 +245,7 @@ func (api *PrivateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 		api.node.httpHandler.WSAllowed = true
 		api.node.httpHandler.WsOrigins = origins
 		// register apis
-		err := RegisterApisFromWhitelist(api.node.rpcAPIs, modules, api.node.httpHandler.Srv, api.node.config.WSExposeAll)// TODO what about modules and rpcapis?
+		err := RegisterApisFromWhitelist(api.node.rpcAPIs, modules, api.node.httpHandler.Srv, api.node.config.WSExposeAll)
 		if err != nil {
 			return false, err
 		}
