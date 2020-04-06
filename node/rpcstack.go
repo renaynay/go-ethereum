@@ -56,6 +56,17 @@ func (hh *HTTPHandler) NewHTTPHandlerStack(prependHandler http.Handler) {
 	hh.handler = hh.newGzipHandler(handler)
 }
 
+func (hh *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if hh.WSAllowed && isWebsocket(r) {
+		hh.Srv.WebsocketHandler(hh.WsOrigins).ServeHTTP(w, r)
+		log.Debug("serving websocket request")
+
+		return
+	}
+	if hh.RPCAllowed {
+		hh.handler.ServeHTTP(w, r)
+	}
+}
 
 func (hh *HTTPHandler) newCorsHandler(srv http.Handler) http.Handler {
 	// disable CORS support if user has not specified a custom CORS configuration
@@ -69,19 +80,6 @@ func (hh *HTTPHandler) newCorsHandler(srv http.Handler) http.Handler {
 		AllowedHeaders: []string{"*"},
 	})
 	return c.Handler(srv)
-}
-
-// TODO document ?
-func (hh *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if hh.WSAllowed && isWebsocket(r) {
-		hh.Srv.WebsocketHandler(hh.WsOrigins).ServeHTTP(w, r)
-		log.Debug("serving websocket request")
-
-		return
-	}
-	if hh.RPCAllowed {
-		hh.handler.ServeHTTP(w, r)
-	}
 }
 
 // virtualHostHandler is a handler which validates the Host-header of incoming requests.
