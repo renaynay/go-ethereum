@@ -18,6 +18,7 @@ package node
 
 import (
 	"compress/gzip"
+	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"io/ioutil"
 	"net"
@@ -25,7 +26,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/rs/cors"
 )
@@ -53,7 +53,7 @@ func (hh *HTTPHandler) NewHTTPHandlerStack(prependHandler http.Handler) {
 	// Wrap the CORS-handler within a host-handler
 	handler := hh.newCorsHandler(prependHandler)
 	handler = hh.newVHostHandler(handler)
-	handler = hh.newGzipHandler(handler)
+	hh.handler = hh.newGzipHandler(handler)
 }
 
 

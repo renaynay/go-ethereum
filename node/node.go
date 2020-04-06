@@ -60,17 +60,16 @@ type Node struct {
 	ipcListener net.Listener // IPC RPC listener socket to serve API requests
 	ipcHandler  *rpc.Server  // IPC RPC request handler to process the API requests
 
-	httpEndpoint  string       // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
+	httpEndpoint string // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
 	//httpWhitelist []string     // HTTP RPC modules to allow through this endpoint
 	//httpListener  net.Listener // HTTP RPC listener socket to server API requests
 	//httpHandler   *rpc.Server  // HTTP RPC request handler to process the API requests
 	httpHandler *HTTPHandler // TODO
 
-	wsEndpoint string       // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
+	wsEndpoint string // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
 	//wsListener net.Listener // Websocket RPC listener socket to server API requests
 	//wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
 	wsHandler *HTTPHandler // TODO
-
 
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
@@ -374,10 +373,11 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	}
 	// create new handler
 	handler := &HTTPHandler{
-		Srv: rpc.NewServer(),
+		Srv:                rpc.NewServer(),
 		CorsAllowedOrigins: cors,
 		Vhosts:             vhosts,
 		WsOrigins:          wsOrigins,
+		RPCAllowed:         true,
 	}
 	// register apis and create handler stack
 	err := RegisterApisFromWhitelist(apis, modules, handler.Srv, false)
@@ -388,9 +388,9 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	if n.httpEndpoint == n.wsEndpoint {
 		handler.WSAllowed = true
 	}
-
+	// create handler stack
 	handler.NewHTTPHandlerStack(handler.Srv)
-
+	// start endpoint
 	listener, err := StartHTTPEndpoint(endpoint, timeouts, handler)
 	if err != nil {
 		return err
@@ -443,7 +443,7 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 	srv := rpc.NewServer()
 	handler := &HTTPHandler{
 		WSAllowed: true,
-		Srv: srv,
+		Srv:       srv,
 	}
 
 	// TODO is rpcAllowed?
