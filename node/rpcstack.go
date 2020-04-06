@@ -169,9 +169,6 @@ func (hh *HTTPHandler) newGzipHandler(next http.Handler) http.Handler {
 	})
 }
 
-// NewWebsocketUpgradeHandler returns a websocket handler that serves an incoming request only if it contains an upgrade
-// request to the websocket protocol. If not, serves the the request with the http handler.
-
 // isWebsocket checks the header of an http request for a websocket upgrade request.
 func isWebsocket(r *http.Request) bool {
 	return strings.ToLower(r.Header.Get("Upgrade")) == "websocket" &&
