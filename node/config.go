@@ -193,6 +193,12 @@ type Config struct {
 	oldGethResourceWarning bool
 }
 
+type httpEndpoint struct {
+	endpoint string
+	host string
+	port int
+}
+
 // IPCEndpoint resolves an IPC endpoint based on a configured value, taking into
 // account the set data folders as well as the designated platform we're currently
 // running on.
@@ -240,11 +246,15 @@ func DefaultIPCEndpoint(clientIdentifier string) string {
 
 // HTTPEndpoint resolves an HTTP endpoint based on the configured host interface
 // and port parameters.
-func (c *Config) HTTPEndpoint() string {
+func (c *Config) HTTPEndpoint() httpEndpoint {
 	if c.HTTPHost == "" {
-		return ""
+		return httpEndpoint{}
 	}
-	return fmt.Sprintf("%s:%d", c.HTTPHost, c.HTTPPort)
+	return httpEndpoint{
+		endpoint: fmt.Sprintf("%s:%d", c.HTTPHost, c.HTTPPort),
+		host: c.HTTPHost,
+		port: c.HTTPPort,
+	}
 }
 
 // GraphQLEndpoint resolves a GraphQL endpoint based on the configured host interface
@@ -257,22 +267,26 @@ func (c *Config) GraphQLEndpoint() string {
 }
 
 // DefaultHTTPEndpoint returns the HTTP endpoint used by default.
-func DefaultHTTPEndpoint() string {
+func DefaultHTTPEndpoint() httpEndpoint {
 	config := &Config{HTTPHost: DefaultHTTPHost, HTTPPort: DefaultHTTPPort}
 	return config.HTTPEndpoint()
 }
 
 // WSEndpoint resolves a websocket endpoint based on the configured host interface
 // and port parameters.
-func (c *Config) WSEndpoint() string {
+func (c *Config) WSEndpoint() httpEndpoint {
 	if c.WSHost == "" {
-		return ""
+		return httpEndpoint{}
 	}
-	return fmt.Sprintf("%s:%d", c.WSHost, c.WSPort)
+	return httpEndpoint{
+		endpoint: fmt.Sprintf("%s:%d", c.WSHost, c.WSPort),
+		host: c.WSHost,
+		port: c.WSPort,
+	}
 }
 
 // DefaultWSEndpoint returns the websocket endpoint used by default.
-func DefaultWSEndpoint() string {
+func DefaultWSEndpoint() httpEndpoint {
 	config := &Config{WSHost: DefaultWSHost, WSPort: DefaultWSPort}
 	return config.WSEndpoint()
 }

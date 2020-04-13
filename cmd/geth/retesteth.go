@@ -896,7 +896,14 @@ func retesteth(ctx *cli.Context) error {
 	if err != nil {
 		utils.Fatalf("Could not register RPC apis: %w", err)
 	}
-	handler := node.NewHTTPHandlerStack(srv, cors, vhosts)
+	handler := &node.HTTPHandler{
+		Srv:                srv,
+		CorsAllowedOrigins: cors,
+		Vhosts:             vhosts,
+		RPCAllowed: true,
+	}
+	handler.NewHTTPHandlerStack(nil)
+
 	// start http server
 	var RetestethHTTPTimeouts = rpc.HTTPTimeouts{
 		ReadTimeout:  120 * time.Second,

@@ -161,7 +161,11 @@ func (api *PrivateAdminAPI) StartRPC(host *string, port *int, cors *string, apis
 	if port == nil {
 		port = &api.node.config.HTTPPort
 	}
-	endpoint := fmt.Sprintf("%s:%d", *host, *port)
+	endpoint := httpEndpoint{
+		endpoint: fmt.Sprintf("%s:%d", *host, *port),
+		host: *host,
+		port: *port,
+	}
 
 	allowedOrigins := api.node.config.HTTPCors
 	if cors != nil {
@@ -224,6 +228,11 @@ func (api *PrivateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 	if port == nil {
 		port = &api.node.config.WSPort
 	}
+	endpoint := httpEndpoint{
+		endpoint: fmt.Sprintf("%s:%d", *host, *port),
+		host: *host,
+		port: *port,
+	}
 
 	origins := api.node.config.WSOrigins
 	if allowedOrigins != nil {
@@ -252,7 +261,7 @@ func (api *PrivateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 		return true, nil
 	}
 
-	if err := api.node.startWS(fmt.Sprintf("%s:%d", *host, *port), api.node.rpcAPIs, modules, origins, api.node.config.WSExposeAll); err != nil {
+	if err := api.node.startWS(endpoint, api.node.rpcAPIs, modules, origins, api.node.config.WSExposeAll); err != nil {
 		return false, err
 	}
 	return true, nil

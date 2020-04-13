@@ -23,7 +23,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -60,10 +59,10 @@ type Node struct {
 	ipcListener net.Listener // IPC RPC listener socket to serve API requests
 	ipcHandler  *rpc.Server  // IPC RPC request handler to process the API requests
 
-	httpEndpoint string // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
+	httpEndpoint httpEndpoint // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
 	httpHandler *HTTPHandler // TODO
 
-	wsEndpoint string // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
+	wsEndpoint httpEndpoint // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
 	wsHandler *HTTPHandler // TODO
 
 	stop chan struct{} // Channel to wait for termination notifications
@@ -295,7 +294,7 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 		return err
 	}
 	// if endpoints are not the same, start separate servers
-	if n.httpEndpoint != n.wsEndpoint {
+	if n.httpEndpoint.endpoint != n.wsEndpoint.endpoint {
 		if err := n.startWS(n.wsEndpoint, apis, n.config.WSModules, n.config.WSOrigins, n.config.WSExposeAll); err != nil {
 			n.stopHTTP()
 			n.stopIPC()
@@ -361,9 +360,9 @@ func (n *Node) stopIPC() {
 }
 
 // startHTTP initializes and starts the HTTP RPC endpoint.
-func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string, timeouts rpc.HTTPTimeouts, wsOrigins []string) error {
+func (n *Node) startHTTP(endpoint httpEndpoint, apis []rpc.API, modules []string, cors []string, vhosts []string, timeouts rpc.HTTPTimeouts, wsOrigins []string) error {
 	// Short circuit if the HTTP endpoint isn't being exposed
-	if endpoint == "" {
+	if endpoint.endpoint == "" {
 		return nil
 	}
 	// create new handler
@@ -386,7 +385,7 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	// create handler stack
 	handler.NewHTTPHandlerStack(handler.Srv)
 	// start endpoint
-	listener, err := StartHTTPEndpoint(endpoint, timeouts, handler)
+	listener, err := StartHTTPEndpoint(endpoint.endpoint, timeouts, handler)
 	if err != nil {
 		return err
 	}
@@ -399,14 +398,8 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	// All listeners booted successfully
 	n.httpEndpoint = endpoint
 	n.httpHandler = handler
-	port, err := strconv.Atoi(endpoint[10:]) // TODO need a better way to do this?
-	if err != nil {
-		return err // TODO should it return ?
-	}
-	n.httpHandler.Port = port
-	//n.httpListener = listener
-	//n.httpHandler = srv
-	//n.httpHandler = handler
+	n.httpHandler.Port = endpoint.port
+
 
 	return nil
 }
@@ -429,15 +422,16 @@ func (n *Node) stopHTTP() { // TODO make it so that this isn't called if no http
 }
 
 // startWS initializes and starts the websocket RPC endpoint.
-func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrigins []string, exposeAll bool) error {
+func (n *Node) startWS(endpoint httpEndpoint, apis []rpc.API, modules []string, wsOrigins []string, exposeAll bool) error {
 	// Short circuit if the WS endpoint isn't being exposed
-	if endpoint == "" {
+	if endpoint.endpoint == "" {
 		return nil
 	}
 
 	srv := rpc.NewServer()
 	handler := &HTTPHandler{
 		WSAllowed: true,
+		WsOrigins: wsOrigins,
 		Srv:       srv,
 	}
 
@@ -447,7 +441,7 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 	if err != nil {
 		return err
 	}
-	listener, err := startWSEndpoint(endpoint, handler)
+	listener, err := startWSEndpoint(endpoint.endpoint, handler)
 	if err != nil {
 		return err
 	}
@@ -456,13 +450,7 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 	n.wsEndpoint = endpoint
 	n.wsHandler = handler
 	n.wsHandler.Listener = listener
-
-	port, err := strconv.Atoi(endpoint[10:]) // TODO need a better way to do this?
-	if err != nil {
-		return err
-	}
-
-	n.wsHandler.Port = port
+	n.wsHandler.Port = endpoint.port
 
 	return nil
 }
@@ -645,7 +633,7 @@ func (n *Node) HTTPEndpoint() string {
 	if n.httpHandler.Listener != nil {
 		return n.httpHandler.Listener.Addr().String()
 	}
-	return n.httpEndpoint
+	return n.httpEndpoint.endpoint
 }
 
 // WSEndpoint retrieves the current WS endpoint used by the protocol stack.
@@ -656,7 +644,7 @@ func (n *Node) WSEndpoint() string {
 	if n.wsHandler.Listener != nil {
 		return n.wsHandler.Listener.Addr().String()
 	}
-	return n.wsEndpoint
+	return n.wsEndpoint.endpoint
 }
 
 // EventMux retrieves the event multiplexer used by all the network services in
