@@ -18,6 +18,7 @@ package node
 
 import (
 	"compress/gzip"
+	"github.com/ethereum/go-ethereum/rpc"
 	"io"
 	"io/ioutil"
 	"net"
@@ -28,6 +29,24 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/rs/cors"
 )
+
+type httpHandler struct {
+	handler http.Handler
+	Srv     *rpc.Server
+
+	Port int
+
+	Whitelist []string
+
+	CorsAllowedOrigins []string
+	Vhosts             []string
+	WsOrigins          []string
+
+	Listener  net.Listener
+
+	RPCAllowed bool
+	WSAllowed  bool
+}
 
 // NewHTTPHandlerStack returns wrapped http-related handlers
 func NewHTTPHandlerStack(srv http.Handler, cors []string, vhosts []string) http.Handler {

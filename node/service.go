@@ -112,6 +112,14 @@ type Service interface {
 	// APIs retrieves the list of RPC descriptors the service provides
 	APIs() []rpc.API
 
+	//TODO document
+	AuxiliaryService
+}
+
+type AuxiliaryService interface {
+	//TODO document
+	HTTPServer() (*httpHandler, error)
+
 	// Start is called after all services have been constructed and the networking
 	// layer was also initialized to spawn any goroutines required by the service.
 	Start(server *p2p.Server) error
