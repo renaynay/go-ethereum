@@ -30,6 +30,8 @@ import (
 	"github.com/rs/cors"
 )
 
+// TODO: httpHandler contains information relevant to an http server
+// 	started on the node
 type httpHandler struct {
 	handler http.Handler
 	Srv     *rpc.Server
@@ -46,6 +48,18 @@ type httpHandler struct {
 
 	RPCAllowed bool
 	WSAllowed  bool
+}
+
+func (hh *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if hh.WSAllowed && isWebsocket(r) {
+		hh.Srv.WebsocketHandler(hh.WsOrigins).ServeHTTP(w, r)
+		log.Debug("serving websocket request")
+
+		return
+	}
+	if hh.RPCAllowed {
+		hh.handler.ServeHTTP(w, r)
+	}
 }
 
 // NewHTTPHandlerStack returns wrapped http-related handlers
