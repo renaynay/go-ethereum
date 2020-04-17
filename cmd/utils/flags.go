@@ -543,7 +543,7 @@ var (
 	}
 	RPCLegacyEnabledFlag = cli.BoolFlag{
 		Name:  "rpc",
-		Usage: "Enable the HTTP-RPC server",
+		Usage: "Enable the HTTP-RPC server (deprecated, use --http)",
 	}
 	HTTPListenAddrFlag = cli.StringFlag{
 		Name:  "httpaddr",
@@ -552,7 +552,7 @@ var (
 	}
 	RPCLegacyListenAddrFlag = cli.StringFlag{
 		Name:  "rpcaddr",
-		Usage: "HTTP-RPC server listening interface",
+		Usage: "HTTP-RPC server listening interface (deprecated, use --httpaddr)",
 		Value: node.DefaultHTTPHost,
 	}
 	HTTPPortFlag = cli.IntFlag{
@@ -562,7 +562,7 @@ var (
 	}
 	RPCLegacyPortFlag = cli.IntFlag{
 		Name:  "rpcport",
-		Usage: "HTTP-RPC server listening port",
+		Usage: "HTTP-RPC server listening port (deprecated, use --httpport)",
 		Value: node.DefaultHTTPPort,
 	}
 	HTTPCORSDomainFlag = cli.StringFlag{
@@ -572,7 +572,7 @@ var (
 	}
 	RPCLegacyCORSDomainFlag = cli.StringFlag{
 		Name:  "rpccorsdomain",
-		Usage: "Comma separated list of domains from which to accept cross origin requests (browser enforced)",
+		Usage: "Comma separated list of domains from which to accept cross origin requests (browser enforced) (deprecated, use --httpcorsdomain)",
 		Value: "",
 	}
 	HTTPVirtualHostsFlag = cli.StringFlag{
@@ -582,7 +582,7 @@ var (
 	}
 	RPCLegacyVirtualHostsFlag = cli.StringFlag{
 		Name:  "rpcvhosts",
-		Usage: "Comma separated list of virtual hostnames from which to accept requests (server enforced). Accepts '*' wildcard.",
+		Usage: "Comma separated list of virtual hostnames from which to accept requests (server enforced). Accepts '*' wildcard. (deprecated, use --httpvhosts)",
 		Value: strings.Join(node.DefaultConfig.HTTPVirtualHosts, ","),
 	}
 	HTTPApiFlag = cli.StringFlag{
@@ -592,7 +592,7 @@ var (
 	}
 	RPCLegacyApiFlag = cli.StringFlag{
 		Name:  "rpcapi",
-		Usage: "API's offered over the HTTP-RPC interface",
+		Usage: "API's offered over the HTTP-RPC interface (deprecated, use --httpapi)",
 		Value: "",
 	}
 	WSEnabledFlag = cli.BoolFlag{
