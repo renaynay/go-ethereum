@@ -98,14 +98,14 @@ type Config struct {
 	// SmartCardDaemonPath is the path to the smartcard daemon's socket
 	SmartCardDaemonPath string `toml:",omitempty"`
 
-	// IPCPath is the requested location to place the IPC endpoint. If the path is
+	// IPCPath is the requested location to place the IPC Endpoint. If the path is
 	// a simple file name, it is placed inside the data directory (or on the root
 	// pipe path on Windows), whereas if it's a resolvable path name (absolute or
 	// relative), then that specific path is enforced. An empty path disables IPC.
 	IPCPath string `toml:",omitempty"`
 
 	// HTTPHost is the host interface on which to start the HTTP RPC server. If this
-	// field is empty, no HTTP API endpoint will be started.
+	// field is empty, no HTTP API Endpoint will be started.
 	HTTPHost string `toml:",omitempty"`
 
 	// HTTPPort is the TCP port number on which to start the HTTP RPC server. The
@@ -137,7 +137,7 @@ type Config struct {
 	HTTPTimeouts rpc.HTTPTimeouts
 
 	// WSHost is the host interface on which to start the websocket RPC server. If
-	// this field is empty, no websocket API endpoint will be started.
+	// this field is empty, no websocket API Endpoint will be started.
 	WSHost string `toml:",omitempty"`
 
 	// WSPort is the TCP port number on which to start the websocket RPC server. The
@@ -163,7 +163,7 @@ type Config struct {
 	WSExposeAll bool `toml:",omitempty"`
 
 	// GraphQLHost is the host interface on which to start the GraphQL server. If this
-	// field is empty, no GraphQL API endpoint will be started.
+	// field is empty, no GraphQL API Endpoint will be started.
 	GraphQLHost string `toml:",omitempty"`
 
 	// GraphQLPort is the TCP port number on which to start the GraphQL server. The
@@ -193,7 +193,7 @@ type Config struct {
 	oldGethResourceWarning bool
 }
 
-// IPCEndpoint resolves an IPC endpoint based on a configured value, taking into
+// IPCEndpoint resolves an IPC Endpoint based on a configured value, taking into
 // account the set data folders as well as the designated platform we're currently
 // running on.
 func (c *Config) IPCEndpoint() string {
@@ -238,7 +238,7 @@ func DefaultIPCEndpoint(clientIdentifier string) string {
 	return config.IPCEndpoint()
 }
 
-// HTTPEndpoint resolves an HTTP endpoint based on the configured host interface
+// HTTPEndpoint resolves an HTTP Endpoint based on the configured host interface
 // and port parameters.
 func (c *Config) HTTPEndpoint() string {
 	if c.HTTPHost == "" {
@@ -247,7 +247,7 @@ func (c *Config) HTTPEndpoint() string {
 	return fmt.Sprintf("%s:%d", c.HTTPHost, c.HTTPPort)
 }
 
-// GraphQLEndpoint resolves a GraphQL endpoint based on the configured host interface
+// GraphQLEndpoint resolves a GraphQL Endpoint based on the configured host interface
 // and port parameters.
 func (c *Config) GraphQLEndpoint() string {
 	if c.GraphQLHost == "" {
@@ -256,13 +256,13 @@ func (c *Config) GraphQLEndpoint() string {
 	return fmt.Sprintf("%s:%d", c.GraphQLHost, c.GraphQLPort)
 }
 
-// DefaultHTTPEndpoint returns the HTTP endpoint used by default.
+// DefaultHTTPEndpoint returns the HTTP Endpoint used by default.
 func DefaultHTTPEndpoint() string {
 	config := &Config{HTTPHost: DefaultHTTPHost, HTTPPort: DefaultHTTPPort}
 	return config.HTTPEndpoint()
 }
 
-// WSEndpoint resolves a websocket endpoint based on the configured host interface
+// WSEndpoint resolves a websocket Endpoint based on the configured host interface
 // and port parameters.
 func (c *Config) WSEndpoint() string {
 	if c.WSHost == "" {
@@ -271,7 +271,7 @@ func (c *Config) WSEndpoint() string {
 	return fmt.Sprintf("%s:%d", c.WSHost, c.WSPort)
 }
 
-// DefaultWSEndpoint returns the websocket endpoint used by default.
+// DefaultWSEndpoint returns the websocket Endpoint used by default.
 func DefaultWSEndpoint() string {
 	config := &Config{WSHost: DefaultWSHost, WSPort: DefaultWSPort}
 	return config.WSEndpoint()
