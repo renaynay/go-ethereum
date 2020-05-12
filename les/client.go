@@ -75,12 +75,12 @@ type LightEthereum struct {
 	p2pServer *p2p.Server
 }
 
-func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
-	chainDb, err := ctx.OpenDatabase("lightchaindata", config.DatabaseCache, config.DatabaseHandles, "eth/db/chaindata/")
+func New(stack *node.Node, config *eth.Config) (*LightEthereum, error) {
+	chainDb, err := stack.ServiceContext.OpenDatabase("lightchaindata", config.DatabaseCache, config.DatabaseHandles, "eth/db/chaindata/")
 	if err != nil {
 		return nil, err
 	}
-	lespayDb, err := ctx.OpenDatabase("lespay", 0, 0, "eth/db/lespay")
+	lespayDb, err := stack.ServiceContext.OpenDatabase("lespay", 0, 0, "eth/db/lespay")
 	if err != nil {
 		return nil, err
 	}
@@ -101,10 +101,10 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
 			closeCh:     make(chan struct{}),
 		},
 		peers:          peers,
-		eventMux:       ctx.EventMux,
+		eventMux:       stack.ServiceContext.EventMux,
 		reqDist:        newRequestDistributor(peers, &mclock.System{}),
-		accountManager: ctx.AccountManager,
-		engine:         eth.CreateConsensusEngine(ctx, chainConfig, &config.Ethash, nil, false, chainDb),
+		accountManager: stack.ServiceContext.AccountManager,
+		engine:         eth.CreateConsensusEngine(stack.ServiceContext, chainConfig, &config.Ethash, nil, false, chainDb),
 		bloomRequests:  make(chan chan *bloombits.Retrieval),
 		bloomIndexer:   eth.NewBloomIndexer(chainDb, params.BloomBitsBlocksClient, params.HelperTrieConfirmations),
 		serverPool:     newServerPool(chainDb, config.UltraLightServers),
@@ -155,14 +155,22 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
 		rawdb.WriteChainConfig(chainDb, genesisHash, chainConfig)
 	}
 
-	leth.ApiBackend = &LesApiBackend{ctx.ExtRPCEnabled(), leth, nil}
+	leth.ApiBackend = &LesApiBackend{stack.ServiceContext.ExtRPCEnabled(), leth, nil}
 	gpoParams := config.GPO
 	if gpoParams.Default == nil {
 		gpoParams.Default = config.Miner.GasPrice
 	}
 	leth.ApiBackend.gpo = gasprice.NewOracle(leth.ApiBackend, gpoParams)
 
-	return leth, nil
+	// Register the backend on the node
+	stack.RegisterAPIs(leth.APIs())
+	if err := stack.RegisterProtocols(leth.Protocols()); err != nil {
+		return nil, err
+	}
+	if err := stack.RegisterBackend(nil, leth); err != nil {
+		return nil, err
+	}
+	return leth, stack.RegisterLifecycle(leth)
 }
 
 // vtSubscription implements serverPeerSubscriber
