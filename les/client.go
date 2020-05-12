@@ -109,6 +109,7 @@ func New(stack *node.Node, config *eth.Config) (*LightEthereum, error) {
 		bloomIndexer:   eth.NewBloomIndexer(chainDb, params.BloomBitsBlocksClient, params.HelperTrieConfirmations),
 		serverPool:     newServerPool(chainDb, config.UltraLightServers),
 		valueTracker:   lpc.NewValueTracker(lespayDb, &mclock.System{}, requestList, time.Minute, 1/float64(time.Hour), 1/float64(time.Hour*100), 1/float64(time.Hour*1000)),
+		p2pServer:		stack.Server(),
 	}
 	peers.subscribe((*vtSubscription)(leth.valueTracker))
 	leth.retriever = newRetrieveManager(peers, leth.reqDist, leth.serverPool)
@@ -165,9 +166,6 @@ func New(stack *node.Node, config *eth.Config) (*LightEthereum, error) {
 	// Register the backend on the node
 	stack.RegisterAPIs(leth.APIs())
 	if err := stack.RegisterProtocols(leth.Protocols()); err != nil {
-		return nil, err
-	}
-	if err := stack.RegisterBackend(nil, leth); err != nil {
 		return nil, err
 	}
 	return leth, stack.RegisterLifecycle(leth)
