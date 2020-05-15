@@ -382,15 +382,14 @@ func (n *Node) startRPC() error {
 		// configure the handlers
 		if server.RPCAllowed {
 			server.handler = NewHTTPHandlerStack(server.Srv, server.CorsAllowedOrigins, server.Vhosts)
+			// wrap ws handler just in case ws is enabled through the console after start-up
+			wsHandler := server.Srv.WebsocketHandler(server.WsOrigins)
+			server.handler = server.NewWebsocketUpgradeHandler(server.handler, wsHandler)
+
 			n.log.Info("HTTP configured on endpoint ", "endpoint", server.endpoint)
 		}
-		if server.WSAllowed {
-			wsHandler := server.Srv.WebsocketHandler(server.WsOrigins)
-			if server.handler != nil {
-				server.handler = server.NewWebsocketUpgradeHandler(server.handler, wsHandler)
-			} else {
-				server.handler = wsHandler
-			}
+		if server.WSAllowed && server.handler == nil {
+			server.handler = server.Srv.WebsocketHandler(server.WsOrigins)
 			n.log.Info("Websocket configured on endpoint ", "endpoint", server.endpoint)
 		}
 		if server.GQLAllowed {
@@ -407,7 +406,7 @@ func (n *Node) startRPC() error {
 		}
 		// start HTTP server
 		server.Start()
-		n.log.Info("Endpoint successfully opened", "url", fmt.Sprintf("http://%v/", server.ListenerAddr))
+		n.log.Info("HTTP endpoint successfully opened", "url", fmt.Sprintf("http://%v/", server.ListenerAddr))
 	}
 	// All API endpoints started successfully
 	return nil

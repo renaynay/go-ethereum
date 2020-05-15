@@ -305,7 +305,12 @@ func (api *PrivateAdminAPI) StopWS() (bool, error) {
 
 	for _, httpServer := range api.node.httpServers {
 		if httpServer.WSAllowed {
-			api.node.stopServer(httpServer)
+			httpServer.WSAllowed = false
+			// if RPC is not enabled on the WS http server, shut it down
+			if !httpServer.RPCAllowed {
+				api.node.stopServer(httpServer)
+			}
+
 			return true, nil
 		}
 	}
