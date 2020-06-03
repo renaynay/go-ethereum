@@ -923,6 +923,7 @@ func TestBloom(t *testing.T) {
 	}
 }
 
+// newNode creates a new node using a default config.
 func newNode(t *testing.T) *node.Node {
 	stack, err := node.New(&node.DefaultConfig)
 	if err != nil {
@@ -939,6 +940,7 @@ func newNode(t *testing.T) *node.Node {
 	return stack
 }
 
+// getWhisperFromNode retrieves the Whisper service from the running node.
 func getWhisperFromNode(stack *node.Node, t *testing.T) *Whisper {
 	var w *Whisper
 	err := stack.Lifecycle(&w)
