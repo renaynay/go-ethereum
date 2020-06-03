@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/sha256"
+	"github.com/ethereum/go-ethereum/node"
 	mrand "math/rand"
 	"testing"
 	"time"
@@ -29,9 +30,11 @@ import (
 )
 
 func TestWhisperBasic(t *testing.T) {
-	w := New(&DefaultConfig)
-	p := w.Protocols()
-	shh := p[0]
+	stack := newNode(t)
+	defer stack.Close()
+	// get whisper service from node
+	w := getWhisperFromNode(stack, t)
+	shh := w.Protocols()[0]
 	if shh.Name != ProtocolName {
 		t.Fatalf("failed Protocol Name: %v.", shh.Name)
 	}
@@ -42,13 +45,13 @@ func TestWhisperBasic(t *testing.T) {
 		t.Fatalf("failed Protocol Length: %v.", shh.Length)
 	}
 	if shh.Run == nil {
-		t.Fatalf("failed shh.Run.")
+		t.Fatal("failed shh.Run.")
 	}
 	if uint64(w.Version()) != ProtocolVersion {
 		t.Fatalf("failed whisper Version: %v.", shh.Version)
 	}
 	if w.GetFilter("non-existent") != nil {
-		t.Fatalf("failed GetFilter.")
+		t.Fatal("failed GetFilter.")
 	}
 
 	peerID := make([]byte, 64)
@@ -58,7 +61,7 @@ func TestWhisperBasic(t *testing.T) {
 		t.Fatal("found peer for random key.")
 	}
 	if err := w.AllowP2PMessagesFromPeer(peerID); err == nil {
-		t.Fatalf("failed MarkPeerTrusted.")
+		t.Fatal("failed MarkPeerTrusted.")
 	}
 	exist := w.HasSymKey("non-existing")
 	if exist {
@@ -66,14 +69,14 @@ func TestWhisperBasic(t *testing.T) {
 	}
 	key, err := w.GetSymKey("non-existing")
 	if err == nil {
-		t.Fatalf("failed GetSymKey(non-existing): false positive.")
+		t.Fatal("failed GetSymKey(non-existing): false positive.")
 	}
 	if key != nil {
-		t.Fatalf("failed GetSymKey: false positive.")
+		t.Fatal("failed GetSymKey: false positive.")
 	}
 	mail := w.Envelopes()
 	if len(mail) != 0 {
-		t.Fatalf("failed w.Envelopes().")
+		t.Fatal("failed w.Envelopes().")
 	}
 
 	derived := pbkdf2.Key(peerID, nil, 65356, aesKeyLength, sha256.New)
@@ -111,11 +114,11 @@ func TestWhisperBasic(t *testing.T) {
 }
 
 func TestWhisperAsymmetricKeyImport(t *testing.T) {
-	var (
-		w           = New(&DefaultConfig)
-		privateKeys []*ecdsa.PrivateKey
-	)
+	stack := newNode(t)
+	defer stack.Close()
 
+	var privateKeys []*ecdsa.PrivateKey
+	w := getWhisperFromNode(stack, t)
 	for i := 0; i < 50; i++ {
 		id, err := w.NewKeyPair()
 		if err != nil {
@@ -130,7 +133,7 @@ func TestWhisperAsymmetricKeyImport(t *testing.T) {
 		privateKeys = append(privateKeys, pk)
 
 		if !w.DeleteKeyPair(id) {
-			t.Fatalf("could not delete private key")
+			t.Fatal("could not delete private key")
 		}
 	}
 
@@ -142,7 +145,10 @@ func TestWhisperAsymmetricKeyImport(t *testing.T) {
 }
 
 func TestWhisperIdentityManagement(t *testing.T) {
-	w := New(&DefaultConfig)
+	stack := newNode(t)
+	defer stack.Close()
+
+	w := getWhisperFromNode(stack, t)
 	id1, err := w.NewKeyPair()
 	if err != nil {
 		t.Fatalf("failed to generate new key pair: %s.", err)
@@ -161,112 +167,116 @@ func TestWhisperIdentityManagement(t *testing.T) {
 	}
 
 	if !w.HasKeyPair(id1) {
-		t.Fatalf("failed HasIdentity(pk1).")
+		t.Fatal("failed HasIdentity(pk1).")
 	}
 	if !w.HasKeyPair(id2) {
-		t.Fatalf("failed HasIdentity(pk2).")
+		t.Fatal("failed HasIdentity(pk2).")
 	}
 	if pk1 == nil {
-		t.Fatalf("failed GetIdentity(pk1).")
+		t.Fatal("failed GetIdentity(pk1).")
 	}
 	if pk2 == nil {
-		t.Fatalf("failed GetIdentity(pk2).")
+		t.Fatal("failed GetIdentity(pk2).")
 	}
 
 	if !validatePrivateKey(pk1) {
-		t.Fatalf("pk1 is invalid.")
+		t.Fatal("pk1 is invalid.")
 	}
 	if !validatePrivateKey(pk2) {
-		t.Fatalf("pk2 is invalid.")
+		t.Fatal("pk2 is invalid.")
 	}
 
 	// Delete one identity
 	done := w.DeleteKeyPair(id1)
 	if !done {
-		t.Fatalf("failed to delete id1.")
+		t.Fatal("failed to delete id1.")
 	}
 	pk1, err = w.GetPrivateKey(id1)
 	if err == nil {
-		t.Fatalf("retrieve the key pair: false positive.")
+		t.Fatal("retrieve the key pair: false positive.")
 	}
 	pk2, err = w.GetPrivateKey(id2)
 	if err != nil {
 		t.Fatalf("failed to retrieve the key pair: %s.", err)
 	}
 	if w.HasKeyPair(id1) {
-		t.Fatalf("failed DeleteIdentity(pub1): still exist.")
+		t.Fatal("failed DeleteIdentity(pub1): still exist.")
 	}
 	if !w.HasKeyPair(id2) {
-		t.Fatalf("failed DeleteIdentity(pub1): pub2 does not exist.")
+		t.Fatal("failed DeleteIdentity(pub1): pub2 does not exist.")
 	}
 	if pk1 != nil {
-		t.Fatalf("failed DeleteIdentity(pub1): first key still exist.")
+		t.Fatal("failed DeleteIdentity(pub1): first key still exist.")
 	}
 	if pk2 == nil {
-		t.Fatalf("failed DeleteIdentity(pub1): second key does not exist.")
+		t.Fatal("failed DeleteIdentity(pub1): second key does not exist.")
 	}
 
 	// Delete again non-existing identity
 	done = w.DeleteKeyPair(id1)
 	if done {
-		t.Fatalf("delete id1: false positive.")
+		t.Fatal("delete id1: false positive.")
 	}
 	pk1, err = w.GetPrivateKey(id1)
 	if err == nil {
-		t.Fatalf("retrieve the key pair: false positive.")
+		t.Fatal("retrieve the key pair: false positive.")
 	}
 	pk2, err = w.GetPrivateKey(id2)
 	if err != nil {
 		t.Fatalf("failed to retrieve the key pair: %s.", err)
 	}
 	if w.HasKeyPair(id1) {
-		t.Fatalf("failed delete non-existing identity: exist.")
+		t.Fatal("failed delete non-existing identity: exist.")
 	}
 	if !w.HasKeyPair(id2) {
-		t.Fatalf("failed delete non-existing identity: pub2 does not exist.")
+		t.Fatal("failed delete non-existing identity: pub2 does not exist.")
 	}
 	if pk1 != nil {
-		t.Fatalf("failed delete non-existing identity: first key exist.")
+		t.Fatal("failed delete non-existing identity: first key exist.")
 	}
 	if pk2 == nil {
-		t.Fatalf("failed delete non-existing identity: second key does not exist.")
+		t.Fatal("failed delete non-existing identity: second key does not exist.")
 	}
 
 	// Delete second identity
 	done = w.DeleteKeyPair(id2)
 	if !done {
-		t.Fatalf("failed to delete id2.")
+		t.Fatal("failed to delete id2.")
 	}
 	pk1, err = w.GetPrivateKey(id1)
 	if err == nil {
-		t.Fatalf("retrieve the key pair: false positive.")
+		t.Fatal("retrieve the key pair: false positive.")
 	}
 	pk2, err = w.GetPrivateKey(id2)
 	if err == nil {
-		t.Fatalf("retrieve the key pair: false positive.")
+		t.Fatal("retrieve the key pair: false positive.")
 	}
 	if w.HasKeyPair(id1) {
-		t.Fatalf("failed delete second identity: first identity exist.")
+		t.Fatal("failed delete second identity: first identity exist.")
 	}
 	if w.HasKeyPair(id2) {
-		t.Fatalf("failed delete second identity: still exist.")
+		t.Fatal("failed delete second identity: still exist.")
 	}
 	if pk1 != nil {
-		t.Fatalf("failed delete second identity: first key exist.")
+		t.Fatal("failed delete second identity: first key exist.")
 	}
 	if pk2 != nil {
-		t.Fatalf("failed delete second identity: second key exist.")
+		t.Fatal("failed delete second identity: second key exist.")
 	}
 }
 
 func TestWhisperSymKeyManagement(t *testing.T) {
 	InitSingleTest()
-
 	var (
 		k1, k2 []byte
-		w      = New(&DefaultConfig)
 		id2    = string("arbitrary-string-2")
 	)
+
+	stack := newNode(t)
+	defer stack.Close()
+
+	w := getWhisperFromNode(stack, t)
+
 	id1, err := w.GenerateSymKey()
 	if err != nil {
 		t.Fatalf("failed GenerateSymKey with seed %d: %s.", seed, err)
@@ -274,23 +284,23 @@ func TestWhisperSymKeyManagement(t *testing.T) {
 
 	k1, err = w.GetSymKey(id1)
 	if err != nil {
-		t.Fatalf("failed GetSymKey(id1).")
+		t.Fatal("failed GetSymKey(id1).")
 	}
 	k2, err = w.GetSymKey(id2)
 	if err == nil {
-		t.Fatalf("failed GetSymKey(id2): false positive.")
+		t.Fatal("failed GetSymKey(id2): false positive.")
 	}
 	if !w.HasSymKey(id1) {
-		t.Fatalf("failed HasSymKey(id1).")
+		t.Fatal("failed HasSymKey(id1).")
 	}
 	if w.HasSymKey(id2) {
-		t.Fatalf("failed HasSymKey(id2): false positive.")
+		t.Fatal("failed HasSymKey(id2): false positive.")
 	}
 	if k1 == nil {
-		t.Fatalf("first key does not exist.")
+		t.Fatal("first key does not exist.")
 	}
 	if k2 != nil {
-		t.Fatalf("second key still exist.")
+		t.Fatal("second key still exist.")
 	}
 
 	// add existing id, nothing should change
@@ -303,26 +313,26 @@ func TestWhisperSymKeyManagement(t *testing.T) {
 
 	k1, err = w.GetSymKey(id1)
 	if err != nil {
-		t.Fatalf("failed w.GetSymKey(id1).")
+		t.Fatal("failed w.GetSymKey(id1).")
 	}
 	k2, err = w.GetSymKey(id2)
 	if err == nil {
-		t.Fatalf("failed w.GetSymKey(id2): false positive.")
+		t.Fatal("failed w.GetSymKey(id2): false positive.")
 	}
 	if !w.HasSymKey(id1) {
-		t.Fatalf("failed w.HasSymKey(id1).")
+		t.Fatal("failed w.HasSymKey(id1).")
 	}
 	if w.HasSymKey(id2) {
-		t.Fatalf("failed w.HasSymKey(id2): false positive.")
+		t.Fatal("failed w.HasSymKey(id2): false positive.")
 	}
 	if k1 == nil {
-		t.Fatalf("first key does not exist.")
+		t.Fatal("first key does not exist.")
 	}
 	if !bytes.Equal(k1, randomKey) {
-		t.Fatalf("k1 != randomKey.")
+		t.Fatal("k1 != randomKey.")
 	}
 	if k2 != nil {
-		t.Fatalf("second key already exist.")
+		t.Fatal("second key already exist.")
 	}
 
 	id2, err = w.AddSymKeyDirect(randomKey)
@@ -331,57 +341,57 @@ func TestWhisperSymKeyManagement(t *testing.T) {
 	}
 	k1, err = w.GetSymKey(id1)
 	if err != nil {
-		t.Fatalf("failed w.GetSymKey(id1).")
+		t.Fatal("failed w.GetSymKey(id1).")
 	}
 	k2, err = w.GetSymKey(id2)
 	if err != nil {
-		t.Fatalf("failed w.GetSymKey(id2).")
+		t.Fatal("failed w.GetSymKey(id2).")
 	}
 	if !w.HasSymKey(id1) {
-		t.Fatalf("HasSymKey(id1) failed.")
+		t.Fatal("HasSymKey(id1) failed.")
 	}
 	if !w.HasSymKey(id2) {
-		t.Fatalf("HasSymKey(id2) failed.")
+		t.Fatal("HasSymKey(id2) failed.")
 	}
 	if k1 == nil {
-		t.Fatalf("k1 does not exist.")
+		t.Fatal("k1 does not exist.")
 	}
 	if k2 == nil {
-		t.Fatalf("k2 does not exist.")
+		t.Fatal("k2 does not exist.")
 	}
 	if !bytes.Equal(k1, k2) {
-		t.Fatalf("k1 != k2.")
+		t.Fatal("k1 != k2.")
 	}
 	if !bytes.Equal(k1, randomKey) {
-		t.Fatalf("k1 != randomKey.")
+		t.Fatal("k1 != randomKey.")
 	}
 	if len(k1) != aesKeyLength {
-		t.Fatalf("wrong length of k1.")
+		t.Fatal("wrong length of k1.")
 	}
 	if len(k2) != aesKeyLength {
-		t.Fatalf("wrong length of k2.")
+		t.Fatal("wrong length of k2.")
 	}
 
 	w.DeleteSymKey(id1)
 	k1, err = w.GetSymKey(id1)
 	if err == nil {
-		t.Fatalf("failed w.GetSymKey(id1): false positive.")
+		t.Fatal("failed w.GetSymKey(id1): false positive.")
 	}
 	if k1 != nil {
-		t.Fatalf("failed GetSymKey(id1): false positive.")
+		t.Fatal("failed GetSymKey(id1): false positive.")
 	}
 	k2, err = w.GetSymKey(id2)
 	if err != nil {
-		t.Fatalf("failed w.GetSymKey(id2).")
+		t.Fatal("failed w.GetSymKey(id2).")
 	}
 	if w.HasSymKey(id1) {
-		t.Fatalf("failed to delete first key: still exist.")
+		t.Fatal("failed to delete first key: still exist.")
 	}
 	if !w.HasSymKey(id2) {
-		t.Fatalf("failed to delete first key: second key does not exist.")
+		t.Fatal("failed to delete first key: second key does not exist.")
 	}
 	if k1 != nil {
-		t.Fatalf("failed to delete first key.")
+		t.Fatal("failed to delete first key.")
 	}
 	if k2 == nil {
 		t.Fatalf("failed to delete first key: second key is nil.")
@@ -391,26 +401,26 @@ func TestWhisperSymKeyManagement(t *testing.T) {
 	w.DeleteSymKey(id2)
 	k1, err = w.GetSymKey(id1)
 	if err == nil {
-		t.Fatalf("failed w.GetSymKey(id1): false positive.")
+		t.Fatal("failed w.GetSymKey(id1): false positive.")
 	}
 	k2, err = w.GetSymKey(id2)
 	if err == nil {
-		t.Fatalf("failed w.GetSymKey(id2): false positive.")
+		t.Fatal("failed w.GetSymKey(id2): false positive.")
 	}
 	if k1 != nil || k2 != nil {
-		t.Fatalf("k1 or k2 is not nil")
+		t.Fatal("k1 or k2 is not nil")
 	}
 	if w.HasSymKey(id1) {
-		t.Fatalf("failed to delete second key: first key exist.")
+		t.Fatal("failed to delete second key: first key exist.")
 	}
 	if w.HasSymKey(id2) {
-		t.Fatalf("failed to delete second key: still exist.")
+		t.Fatal("failed to delete second key: still exist.")
 	}
 	if k1 != nil {
-		t.Fatalf("failed to delete second key: first key is not nil.")
+		t.Fatal("failed to delete second key: first key is not nil.")
 	}
 	if k2 != nil {
-		t.Fatalf("failed to delete second key: second key is not nil.")
+		t.Fatal("failed to delete second key: second key is not nil.")
 	}
 
 	randomKey = make([]byte, aesKeyLength+1)
@@ -431,34 +441,37 @@ func TestWhisperSymKeyManagement(t *testing.T) {
 	}
 	k1, err = w.GetSymKey(id1)
 	if err != nil {
-		t.Fatalf("failed w.GetSymKey(id1).")
+		t.Fatal("failed w.GetSymKey(id1).")
 	}
 	k2, err = w.GetSymKey(id2)
 	if err != nil {
-		t.Fatalf("failed w.GetSymKey(id2).")
+		t.Fatal("failed w.GetSymKey(id2).")
 	}
 	if !w.HasSymKey(id1) {
-		t.Fatalf("HasSymKey(id1) failed.")
+		t.Fatal("HasSymKey(id1) failed.")
 	}
 	if !w.HasSymKey(id2) {
-		t.Fatalf("HasSymKey(id2) failed.")
+		t.Fatal("HasSymKey(id2) failed.")
 	}
 	if !validateDataIntegrity(k2, aesKeyLength) {
-		t.Fatalf("key validation failed.")
+		t.Fatal("key validation failed.")
 	}
 	if !bytes.Equal(k1, k2) {
-		t.Fatalf("k1 != k2.")
+		t.Fatal("k1 != k2.")
 	}
 }
 
 func TestExpiry(t *testing.T) {
 	InitSingleTest()
 
-	w := New(&DefaultConfig)
+	stack := newNode(t)
+	defer stack.Close()
+
+	w := getWhisperFromNode(stack, t)
+
 	w.SetMinimumPowTest(0.0000001)
 	defer w.SetMinimumPowTest(DefaultMinimumPoW)
-	w.Start(nil)
-	defer w.Stop()
+	w.Start()
 
 	params, err := generateMessageParams()
 	if err != nil {
@@ -518,11 +531,15 @@ func TestExpiry(t *testing.T) {
 func TestCustomization(t *testing.T) {
 	InitSingleTest()
 
-	w := New(&DefaultConfig)
+	stack := newNode(t)
+	defer stack.Close()
+
+	w := getWhisperFromNode(stack, t)
+
 	defer w.SetMinimumPowTest(DefaultMinimumPoW)
 	defer w.SetMaxMessageSize(DefaultMaxMessageSize)
-	w.Start(nil)
-	defer w.Stop()
+	w.Start()
+	
 
 	const smallPoW = 0.00001
 
@@ -602,18 +619,22 @@ func TestCustomization(t *testing.T) {
 	time.Sleep(5 * time.Millisecond)
 	mail := f.Retrieve()
 	if len(mail) > 0 {
-		t.Fatalf("received premature mail")
+		t.Fatal("received premature mail")
 	}
 }
 
 func TestSymmetricSendCycle(t *testing.T) {
 	InitSingleTest()
 
-	w := New(&DefaultConfig)
+	stack := newNode(t)
+	defer stack.Close()
+
+	w := getWhisperFromNode(stack, t)
+
 	defer w.SetMinimumPowTest(DefaultMinimumPoW)
 	defer w.SetMaxMessageSize(DefaultMaxMessageSize)
-	w.Start(nil)
-	defer w.Stop()
+	w.Start()
+	
 
 	filter1, err := generateFilter(t, true)
 	if err != nil {
@@ -687,10 +708,10 @@ func TestSymmetricSendCycle(t *testing.T) {
 	mail1 := filter1.Retrieve()
 	mail2 := filter2.Retrieve()
 	if len(mail2) == 0 {
-		t.Fatalf("did not receive any email for filter 2")
+		t.Fatal("did not receive any email for filter 2")
 	}
 	if len(mail1) == 0 {
-		t.Fatalf("did not receive any email for filter 1")
+		t.Fatal("did not receive any email for filter 1")
 	}
 
 }
@@ -698,11 +719,15 @@ func TestSymmetricSendCycle(t *testing.T) {
 func TestSymmetricSendWithoutAKey(t *testing.T) {
 	InitSingleTest()
 
-	w := New(&DefaultConfig)
+	stack := newNode(t)
+	defer stack.Close()
+
+	w := getWhisperFromNode(stack, t)
+
 	defer w.SetMinimumPowTest(DefaultMinimumPoW)
 	defer w.SetMaxMessageSize(DefaultMaxMessageSize)
-	w.Start(nil)
-	defer w.Stop()
+	w.Start()
+	
 
 	filter, err := generateFilter(t, true)
 	if err != nil {
@@ -766,11 +791,15 @@ func TestSymmetricSendWithoutAKey(t *testing.T) {
 func TestSymmetricSendKeyMismatch(t *testing.T) {
 	InitSingleTest()
 
-	w := New(&DefaultConfig)
+	stack := newNode(t)
+	defer stack.Close()
+
+	w := getWhisperFromNode(stack, t)
+
 	defer w.SetMinimumPowTest(DefaultMinimumPoW)
 	defer w.SetMaxMessageSize(DefaultMaxMessageSize)
-	w.Start(nil)
-	defer w.Stop()
+	w.Start()
+	
 
 	filter, err := generateFilter(t, true)
 	if err != nil {
@@ -825,7 +854,7 @@ func TestSymmetricSendKeyMismatch(t *testing.T) {
 	time.Sleep(5 * time.Millisecond)
 	mail := filter.Retrieve()
 	if len(mail) > 0 {
-		t.Fatalf("received a message when keys weren't matching")
+		t.Fatal("received a message when keys weren't matching")
 	}
 }
 
@@ -837,55 +866,84 @@ func TestBloom(t *testing.T) {
 	x[32] = byte(1)
 	x[BloomFilterSize-1] = byte(128)
 	if !BloomFilterMatch(x, b) || !BloomFilterMatch(b, x) {
-		t.Fatalf("bloom filter does not match the mask")
+		t.Fatal("bloom filter does not match the mask")
 	}
 
 	_, err := mrand.Read(b)
 	if err != nil {
-		t.Fatalf("math rand error")
+		t.Fatal("math rand error")
 	}
 	_, err = mrand.Read(x)
 	if err != nil {
-		t.Fatalf("math rand error")
+		t.Fatal("math rand error")
 	}
 	if !BloomFilterMatch(b, b) {
-		t.Fatalf("bloom filter does not match self")
+		t.Fatal("bloom filter does not match self")
 	}
 	x = addBloom(x, b)
 	if !BloomFilterMatch(x, b) {
-		t.Fatalf("bloom filter does not match combined bloom")
+		t.Fatal("bloom filter does not match combined bloom")
 	}
 	if !isFullNode(nil) {
-		t.Fatalf("isFullNode did not recognize nil as full node")
+		t.Fatal("isFullNode did not recognize nil as full node")
 	}
 	x[17] = 254
 	if isFullNode(x) {
-		t.Fatalf("isFullNode false positive")
+		t.Fatal("isFullNode false positive")
 	}
 	for i := 0; i < BloomFilterSize; i++ {
 		b[i] = byte(255)
 	}
 	if !isFullNode(b) {
-		t.Fatalf("isFullNode false negative")
+		t.Fatal("isFullNode false negative")
 	}
 	if BloomFilterMatch(x, b) {
-		t.Fatalf("bloomFilterMatch false positive")
+		t.Fatal("bloomFilterMatch false positive")
 	}
 	if !BloomFilterMatch(b, x) {
-		t.Fatalf("bloomFilterMatch false negative")
+		t.Fatal("bloomFilterMatch false negative")
 	}
 
-	w := New(&DefaultConfig)
+	stack := newNode(t)
+	defer stack.Close()
+
+	w := getWhisperFromNode(stack, t)
+
 	f := w.BloomFilter()
 	if f != nil {
-		t.Fatalf("wrong bloom on creation")
+		t.Fatal("wrong bloom on creation")
 	}
 	err = w.SetBloomFilter(x)
 	if err != nil {
-		t.Fatalf("failed to set bloom filter: %s", err)
+		t.Fatalf("failed to set bloom filter: %v", err)
 	}
 	f = w.BloomFilter()
 	if !BloomFilterMatch(f, x) || !BloomFilterMatch(x, f) {
-		t.Fatalf("retireved wrong bloom filter")
+		t.Fatal("retireved wrong bloom filter")
 	}
+}
+
+func newNode(t *testing.T) *node.Node {
+	stack, err := node.New(&node.DefaultConfig)
+	if err != nil {
+		t.Fatalf("could not create new node: %v", err)
+	}
+	err = New(stack, &DefaultConfig)
+	if err != nil {
+		t.Fatalf("could not create new whisper service: %v", err)
+	}
+	err = stack.Start()
+	if err != nil {
+		t.Fatalf("could not start node: %v", err)
+	}
+	return stack
+}
+
+func getWhisperFromNode(stack *node.Node, t *testing.T) *Whisper {
+	var w *Whisper
+	err := stack.Lifecycle(&w)
+	if err != nil {
+		t.Fatalf("could not get whisper service from node: %v", err)
+	}
+	return w
 }
