@@ -20,12 +20,12 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/sha256"
-	"github.com/ethereum/go-ethereum/node"
 	mrand "math/rand"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/node"
 	"golang.org/x/crypto/pbkdf2"
 )
 
@@ -541,7 +541,6 @@ func TestCustomization(t *testing.T) {
 	defer w.SetMinimumPowTest(DefaultMinimumPoW)
 	defer w.SetMaxMessageSize(DefaultMaxMessageSize)
 	w.Start()
-	
 
 	const smallPoW = 0.00001
 
@@ -638,7 +637,6 @@ func TestSymmetricSendCycle(t *testing.T) {
 	defer w.SetMinimumPowTest(DefaultMinimumPoW)
 	defer w.SetMaxMessageSize(DefaultMaxMessageSize)
 	w.Start()
-	
 
 	filter1, err := generateFilter(t, true)
 	if err != nil {
@@ -733,7 +731,6 @@ func TestSymmetricSendWithoutAKey(t *testing.T) {
 	defer w.SetMinimumPowTest(DefaultMinimumPoW)
 	defer w.SetMaxMessageSize(DefaultMaxMessageSize)
 	w.Start()
-	
 
 	filter, err := generateFilter(t, true)
 	if err != nil {
@@ -807,7 +804,6 @@ func TestSymmetricSendKeyMismatch(t *testing.T) {
 	defer w.SetMinimumPowTest(DefaultMinimumPoW)
 	defer w.SetMaxMessageSize(DefaultMaxMessageSize)
 	w.Start()
-	
 
 	filter, err := generateFilter(t, true)
 	if err != nil {
