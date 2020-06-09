@@ -348,14 +348,9 @@ func geth(ctx *cli.Context) error {
 	}
 	prepare(ctx)
 	stack := makeFullNode(ctx)
-	// fetch backend
-	var ethBackend *eth.Ethereum
-	stack.ServiceContext.Lifecycle(&ethBackend)
-	var lesBackend *les.LightEthereum
-	stack.ServiceContext.Lifecycle(&lesBackend)
 
 	defer stack.Close()
-	startNode(ctx, stack, ethBackend, lesBackend)
+	startNode(ctx, stack)
 
 	stack.Wait()
 	return nil
@@ -364,12 +359,8 @@ func geth(ctx *cli.Context) error {
 // startNode boots up the system node and all registered protocols, after which
 // it unlocks any requested accounts, and starts the RPC/IPC interfaces and the
 // miner.
-func startNode(ctx *cli.Context, stack *node.Node, ethBackend *eth.Ethereum, lesBackend *les.LightEthereum) {
+func startNode(ctx *cli.Context, stack *node.Node) {
 	debug.Memsize.Add("node", stack)
-
-	if ethBackend == nil && lesBackend == nil {
-		utils.Fatalf("No backend service found") // TODO is this error okay?
-	}
 
 	// Start up the node itself
 	utils.StartNode(stack)
@@ -391,7 +382,8 @@ func startNode(ctx *cli.Context, stack *node.Node, ethBackend *eth.Ethereum, les
 	// Set contract backend for ethereum service if local node
 	// is serving LES requests.
 	if ctx.GlobalInt(utils.LegacyLightServFlag.Name) > 0 || ctx.GlobalInt(utils.LightServeFlag.Name) > 0 {
-		if ethBackend == nil {
+		var ethBackend *eth.Ethereum
+		if err := stack.ServiceContext.Lifecycle(&ethBackend); err != nil {
 			utils.Fatalf("Failed to retrieve ethereum service: %v", err)
 		}
 		ethBackend.SetContractBackend(ethClient)
@@ -399,7 +391,8 @@ func startNode(ctx *cli.Context, stack *node.Node, ethBackend *eth.Ethereum, les
 	// Set contract backend for les service if local node is
 	// running as a light client.
 	if ctx.GlobalString(utils.SyncModeFlag.Name) == "light" {
-		if lesBackend == nil {
+		var lesBackend *les.LightEthereum
+		if err := stack.ServiceContext.Lifecycle(&lesBackend); err != nil {
 			utils.Fatalf("Failed to retrieve light ethereum service: %v", err)
 		}
 		lesBackend.SetContractBackend(ethClient)
@@ -469,7 +462,8 @@ func startNode(ctx *cli.Context, stack *node.Node, ethBackend *eth.Ethereum, les
 			utils.Fatalf("Light clients do not support mining")
 		}
 		// Check if node's backend is eth and that it exists
-		if ethBackend == nil {
+		var ethBackend *eth.Ethereum
+		if err := stack.ServiceContext.Lifecycle(&ethBackend); err != nil {
 			utils.Fatalf("Ethereum service not running: backend is not an eth backend")
 		}
 		// Set the gas price to the limits from the CLI and start mining
