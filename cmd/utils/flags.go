@@ -1656,7 +1656,7 @@ func RegisterEthService(stack *node.Node, cfg *eth.Config) {
 	if cfg.SyncMode == downloader.LightSync {
 		_, err := les.New(stack, cfg)
 		if err != nil {
-			Fatalf("Failed to register the Ethereum service: %w", err)
+			Fatalf("Failed to register the Ethereum service: %v", err)
 		}
 	} else {
 		backend, err := eth.New(stack, cfg)
@@ -1673,7 +1673,7 @@ func RegisterEthService(stack *node.Node, cfg *eth.Config) {
 // RegisterShhService configures Whisper and adds it to the given node.
 func RegisterShhService(stack *node.Node, cfg *whisper.Config) {
 	if err := whisper.New(stack, cfg); err != nil {
-		Fatalf("Failed to register the Whisper service: %w", err)
+		Fatalf("Failed to register the Whisper service: %v", err)
 	}
 }
 
@@ -1681,7 +1681,7 @@ func RegisterShhService(stack *node.Node, cfg *whisper.Config) {
 // the given node.
 func RegisterEthStatsService(stack *node.Node, url string) {
 	if err := ethstats.New(stack, url); err != nil {
-		Fatalf("Failed to register the Ethereum Stats service: %w", err)
+		Fatalf("Failed to register the Ethereum Stats service: %v", err)
 	}
 }
 
