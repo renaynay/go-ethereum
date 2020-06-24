@@ -109,11 +109,12 @@ func NewPrivateTraceAPI(eth *Ethereum) *PrivateTraceAPI {
 }
 
 func RegisterNewTracer(stack *node.Node) {
+	// todo pass backend explicitly
 	var ethBackend *Ethereum
 	if err := stack.ServiceContext.Lifecycle(&ethBackend); err != nil {
 		node.Fatalf("no eth backend") // TODO better error
 	}
-	// Todo needs to somehow register on eth object so that PrivateDebugAPI can grab it / know about it
+	// Todo needs to somehow register on eth object so that PrivateDebugAPI can grab it / know about it? or does it?
 	stack.RegisterAPIs(APIs(ethBackend))
 }
 
