@@ -730,6 +730,10 @@ var (
 		Usage: "External EVM configuration (default = built-in interpreter)",
 		Value: "",
 	}
+	TracingEnabledFlag = cli.BoolFlag{
+		Name: "tracing",
+		Usage: "Enable ethereum tracing",
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -1666,6 +1670,15 @@ func RegisterEthService(stack *node.Node, cfg *eth.Config) {
 			ls, _ := les.NewLesServer(backend, cfg)
 			backend.AddLesServer(ls)
 		}
+	}
+}
+
+func RegisterEthTracers(stack *node.Node) {
+	eth.RegisterNewTracer(stack)
+
+	var ethBackend *eth.Ethereum
+	if err := stack.ServiceContext.Lifecycle(&ethBackend); err != nil {
+		Fatalf("couldn't get eth backend") // TODO improve err message
 	}
 }
 

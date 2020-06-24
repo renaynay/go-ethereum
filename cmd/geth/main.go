@@ -152,6 +152,7 @@ var (
 		utils.LegacyGpoPercentileFlag,
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
+		utils.TracingEnabledFlag,
 		configFileFlag,
 	}
 
