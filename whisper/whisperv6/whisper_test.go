@@ -30,10 +30,9 @@ import (
 )
 
 func TestWhisperBasic(t *testing.T) {
-	stack := newNode(t)
+	stack, w := newNodeWithWhisper(t)
 	defer stack.Close()
-	// get whisper service from node
-	w := getWhisperFromNode(stack, t)
+
 	shh := w.Protocols()[0]
 	if shh.Name != ProtocolName {
 		t.Fatalf("failed Protocol Name: %v.", shh.Name)
@@ -114,11 +113,10 @@ func TestWhisperBasic(t *testing.T) {
 }
 
 func TestWhisperAsymmetricKeyImport(t *testing.T) {
-	stack := newNode(t)
+	stack, w := newNodeWithWhisper(t)
 	defer stack.Close()
 
 	var privateKeys []*ecdsa.PrivateKey
-	w := getWhisperFromNode(stack, t)
 	for i := 0; i < 50; i++ {
 		id, err := w.NewKeyPair()
 		if err != nil {
@@ -145,10 +143,9 @@ func TestWhisperAsymmetricKeyImport(t *testing.T) {
 }
 
 func TestWhisperIdentityManagement(t *testing.T) {
-	stack := newNode(t)
+	stack, w := newNodeWithWhisper(t)
 	defer stack.Close()
 
-	w := getWhisperFromNode(stack, t)
 	id1, err := w.NewKeyPair()
 	if err != nil {
 		t.Fatalf("failed to generate new key pair: %s.", err)
@@ -272,10 +269,8 @@ func TestWhisperSymKeyManagement(t *testing.T) {
 		id2    = string("arbitrary-string-2")
 	)
 
-	stack := newNode(t)
+	stack, w := newNodeWithWhisper(t)
 	defer stack.Close()
-
-	w := getWhisperFromNode(stack, t)
 
 	id1, err := w.GenerateSymKey()
 	if err != nil {
@@ -464,10 +459,8 @@ func TestWhisperSymKeyManagement(t *testing.T) {
 func TestExpiry(t *testing.T) {
 	InitSingleTest()
 
-	stack := newNode(t)
+	stack, w := newNodeWithWhisper(t)
 	defer stack.Close()
-
-	w := getWhisperFromNode(stack, t)
 
 	w.SetMinimumPowTest(0.0000001)
 	defer w.SetMinimumPowTest(DefaultMinimumPoW)
@@ -533,10 +526,8 @@ func TestExpiry(t *testing.T) {
 func TestCustomization(t *testing.T) {
 	InitSingleTest()
 
-	stack := newNode(t)
+	stack, w := newNodeWithWhisper(t)
 	defer stack.Close()
-
-	w := getWhisperFromNode(stack, t)
 
 	defer w.SetMinimumPowTest(DefaultMinimumPoW)
 	defer w.SetMaxMessageSize(DefaultMaxMessageSize)
@@ -629,10 +620,8 @@ func TestCustomization(t *testing.T) {
 func TestSymmetricSendCycle(t *testing.T) {
 	InitSingleTest()
 
-	stack := newNode(t)
+	stack, w := newNodeWithWhisper(t)
 	defer stack.Close()
-
-	w := getWhisperFromNode(stack, t)
 
 	defer w.SetMinimumPowTest(DefaultMinimumPoW)
 	defer w.SetMaxMessageSize(DefaultMaxMessageSize)
@@ -723,10 +712,8 @@ func TestSymmetricSendCycle(t *testing.T) {
 func TestSymmetricSendWithoutAKey(t *testing.T) {
 	InitSingleTest()
 
-	stack := newNode(t)
+	stack, w := newNodeWithWhisper(t)
 	defer stack.Close()
-
-	w := getWhisperFromNode(stack, t)
 
 	defer w.SetMinimumPowTest(DefaultMinimumPoW)
 	defer w.SetMaxMessageSize(DefaultMaxMessageSize)
@@ -796,10 +783,8 @@ func TestSymmetricSendWithoutAKey(t *testing.T) {
 func TestSymmetricSendKeyMismatch(t *testing.T) {
 	InitSingleTest()
 
-	stack := newNode(t)
+	stack, w := newNodeWithWhisper(t)
 	defer stack.Close()
-
-	w := getWhisperFromNode(stack, t)
 
 	defer w.SetMinimumPowTest(DefaultMinimumPoW)
 	defer w.SetMaxMessageSize(DefaultMaxMessageSize)
@@ -910,10 +895,8 @@ func TestBloom(t *testing.T) {
 		t.Fatal("bloomFilterMatch false negative")
 	}
 
-	stack := newNode(t)
+	stack, w := newNodeWithWhisper(t)
 	defer stack.Close()
-
-	w := getWhisperFromNode(stack, t)
 
 	f := w.BloomFilter()
 	if f != nil {
@@ -929,14 +912,14 @@ func TestBloom(t *testing.T) {
 	}
 }
 
-// newNode creates a new node using a default config and
+// newNodeWithWhisper creates a new node using a default config and
 // creates and registers a new Whisper service on it.
-func newNode(t *testing.T) *node.Node {
+func newNodeWithWhisper(t *testing.T) (*node.Node, *Whisper) {
 	stack, err := node.New(&node.DefaultConfig)
 	if err != nil {
 		t.Fatalf("could not create new node: %v", err)
 	}
-	err = New(stack, &DefaultConfig)
+	w, err := New(stack, &DefaultConfig)
 	if err != nil {
 		t.Fatalf("could not create new whisper service: %v", err)
 	}
@@ -944,15 +927,5 @@ func newNode(t *testing.T) *node.Node {
 	if err != nil {
 		t.Fatalf("could not start node: %v", err)
 	}
-	return stack
-}
-
-// getWhisperFromNode retrieves the Whisper service from the running node.
-func getWhisperFromNode(stack *node.Node, t *testing.T) *Whisper {
-	var w *Whisper
-	err := stack.Lifecycle(&w)
-	if err != nil {
-		t.Fatalf("could not get whisper service from node: %v", err)
-	}
-	return w
+	return stack, w
 }
