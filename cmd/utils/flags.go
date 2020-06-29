@@ -1407,6 +1407,7 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	if ctx.GlobalIsSet(MinerNoVerfiyFlag.Name) {
 		cfg.Noverify = ctx.Bool(MinerNoVerfiyFlag.Name)
 	}
+	panic(fmt.Sprintf("cfg.recommit=%v cfg.noverify=%v", cfg.Recommit, cfg.Noverify))
 }
 
 func setWhitelist(ctx *cli.Context, cfg *eth.Config) {
