@@ -140,8 +140,6 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.WSApiFlag,
 			utils.WSAllowedOriginsFlag,
 			utils.GraphQLEnabledFlag,
-			utils.GraphQLListenAddrFlag,
-			utils.GraphQLPortFlag,
 			utils.GraphQLCORSDomainFlag,
 			utils.GraphQLVirtualHostsFlag,
 			utils.RPCGlobalGasCap,
@@ -229,6 +227,8 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.LegacyWSApiFlag,
 			utils.LegacyGpoBlocksFlag,
 			utils.LegacyGpoPercentileFlag,
+			utils.LegacyGraphQLListenAddrFlag,
+			utils.LegacyGraphQLPortFlag,
 		}, debug.DeprecatedFlags...),
 	},
 	{
