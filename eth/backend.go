@@ -20,6 +20,7 @@ package eth
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"math/big"
 	"runtime"
 	"sync"
@@ -95,6 +96,7 @@ type Ethereum struct {
 	netRPCService *ethapi.PublicNetAPI
 
 	p2pServer *p2p.Server
+	node *node.Node
 
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
 }
@@ -236,6 +238,8 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 
 	// Start the RPC service
 	eth.netRPCService = ethapi.NewPublicNetAPI(eth.p2pServer, eth.NetVersion())
+
+	eth.node = stack
 
 	// Register the backend on the node
 	stack.RegisterAPIs(eth.APIs())
@@ -548,6 +552,19 @@ func (s *Ethereum) Start() error {
 
 	// Start the bloom bits servicing goroutines
 	s.startBloomHandlers(params.BloomBitsBlocks)
+
+	// Set contract backend for ethereum service if local node
+	// is serving LES requests.
+	if s.config.SetEthContractBackend {
+		// Create a client to interact with local geth node.
+		rpcClient, err := s.node.Attach()
+		if err != nil {
+			return err
+		}
+		ethClient := ethclient.NewClient(rpcClient)
+
+		s.SetContractBackend(ethClient)
+	}
 
 	// Figure out a max peers count based on the server limits
 	maxPeers := s.p2pServer.MaxPeers

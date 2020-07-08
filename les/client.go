@@ -19,6 +19,7 @@ package les
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -73,6 +74,7 @@ type LightEthereum struct {
 	netRPCService  *ethapi.PublicNetAPI
 
 	p2pServer *p2p.Server
+	node *node.Node
 }
 
 func New(stack *node.Node, config *eth.Config) (*LightEthereum, error) {
@@ -167,6 +169,8 @@ func New(stack *node.Node, config *eth.Config) (*LightEthereum, error) {
 	leth.ApiBackend.gpo = gasprice.NewOracle(leth.ApiBackend, gpoParams)
 
 	leth.netRPCService = ethapi.NewPublicNetAPI(leth.p2pServer, leth.config.NetworkId)
+
+	leth.node = stack
 
 	// Register the backend on the node
 	stack.RegisterAPIs(leth.APIs())
@@ -280,6 +284,19 @@ func (s *LightEthereum) Protocols() []p2p.Protocol {
 // light ethereum protocol implementation.
 func (s *LightEthereum) Start() error {
 	log.Warn("Light client mode is an experimental feature")
+
+	// Set contract backend for les service if local node is
+	// running as a light client.
+	if s.lesCommons.config.SetLesContractBackend {
+		// Create a client to interact with local geth node.
+		rpcClient, err := s.node.Attach()
+		if err != nil {
+			return err
+		}
+		ethClient := ethclient.NewClient(rpcClient)
+
+		s.SetContractBackend(ethClient)
+	}
 
 	s.serverPool.start()
 	// Start bloom request workers.

@@ -1645,6 +1645,13 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 			setDNSDiscoveryDefaults(cfg, params.MainnetGenesisHash)
 		}
 	}
+
+	if ctx.GlobalInt(LegacyLightServFlag.Name) > 0 || ctx.GlobalInt(LightServeFlag.Name) > 0 {
+		cfg.SetEthContractBackend = true
+	}
+	if ctx.GlobalString(SyncModeFlag.Name) == "light" {
+		cfg.SetLesContractBackend = true
+	}
 }
 
 // setDNSDiscoveryDefaults configures DNS discovery with the given URL if

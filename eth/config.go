@@ -179,4 +179,7 @@ type Config struct {
 
 	// CheckpointOracle is the configuration for checkpoint oracle.
 	CheckpointOracle *params.CheckpointOracleConfig `toml:",omitempty"`
+
+	SetEthContractBackend bool
+	SetLesContractBackend bool
 }

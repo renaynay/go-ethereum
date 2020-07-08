@@ -365,10 +365,6 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 	// Unlock any account specifically requested
 	unlockAccounts(ctx, stack)
 
-	// Register wallet event handlers to open and auto-derive wallets
-	events := make(chan accounts.WalletEvent, 16)
-	stack.AccountManager().Subscribe(events)
-
 	// Create a client to interact with local geth node.
 	rpcClient, err := stack.Attach()
 	if err != nil {
@@ -376,16 +372,9 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 	}
 	ethClient := ethclient.NewClient(rpcClient)
 
-	// Set contract backend for ethereum service if local node
-	// is serving LES requests.
-	if ctx.GlobalInt(utils.LegacyLightServFlag.Name) > 0 || ctx.GlobalInt(utils.LightServeFlag.Name) > 0 {
-		backend.SetContractBackend(ethClient)
-	}
-	// Set contract backend for les service if local node is
-	// running as a light client.
-	if ctx.GlobalString(utils.SyncModeFlag.Name) == "light" {
-		backend.SetContractBackend(ethClient)
-	}
+	// Register wallet event handlers to open and auto-derive wallets
+	events := make(chan accounts.WalletEvent, 16)
+	stack.AccountManager().Subscribe(events)
 
 	go func() {
 		// Open any wallets already attached
