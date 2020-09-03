@@ -17,10 +17,15 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
+	"math/big"
 	"net"
+	"strconv"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/forkid"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/rlpx"
@@ -34,6 +39,7 @@ var (
 		Usage: "RLPx Commands",
 		Subcommands: []cli.Command{
 			rlpxPingCommand,
+			rlpxStatusCommand,
 		},
 	}
 	rlpxPingCommand = cli.Command{
@@ -42,7 +48,24 @@ var (
 		ArgsUsage: "<node>",
 		Action:    rlpxPing,
 	}
+	rlpxStatusCommand = cli.Command{
+		Name:      "status",
+		Usage:     "Get the given node's status",
+		ArgsUsage: "<node>", //TODO this might change
+		Action:    getStatus,
+	}
 )
+
+// devp2pHandshake is the RLP structure of the devp2p protocol handshake.
+type devp2pHandshake struct {
+	Version    uint64
+	Name       string
+	Caps       []p2p.Cap
+	ListenPort uint64
+	ID         hexutil.Bytes // secp256k1 public key
+	// Ignore additional fields (for forward compatibility).
+	Rest []rlp.RawValue `rlp:"tail"`
+}
 
 func rlpxPing(ctx *cli.Context) error {
 	n := getNodeArg(ctx)
@@ -82,13 +105,70 @@ func rlpxPing(ctx *cli.Context) error {
 	return nil
 }
 
-// devp2pHandshake is the RLP structure of the devp2p protocol handshake.
-type devp2pHandshake struct {
-	Version    uint64
-	Name       string
-	Caps       []p2p.Cap
-	ListenPort uint64
-	ID         hexutil.Bytes // secp256k1 public key
-	// Ignore additional fields (for forward compatibility).
-	Rest []rlp.RawValue `rlp:"tail"`
+// statusData is the network packet for the status message for eth/64 and later.
+type statusData struct {
+	ProtocolVersion uint32
+	NetworkID       uint64
+	TD              *big.Int
+	Head            common.Hash
+	Genesis         common.Hash
+	ForkID          forkid.ID
+}
+
+func getStatus(ctx *cli.Context) error {
+	// [protocolVersion: P, networkId: P, td: P, bestHash: B_32, genesisHash: B_32, forkID]
+	n := getNodeArg(ctx)
+	data := parseStatusMsg(ctx)
+
+	fmt.Println("\n\n\n")
+	fmt.Println(n)
+	fmt.Println(data)
+
+	return nil
+}
+
+func parseStatusMsg(ctx *cli.Context) (status statusData) { // TODO make sure to prevent panics
+	rawProtoVersion := ctx.Args()[1]
+	protoVersion, err := strconv.Atoi(rawProtoVersion)
+	if err != nil {
+		exit("protocol version is not uint32")
+	}
+	status.ProtocolVersion = uint32(protoVersion)
+
+	rawNetworkID := ctx.Args()[2]
+	networkID, err := strconv.Atoi(rawNetworkID)
+	if err != nil {
+		exit("network ID is not uint64")
+	}
+	status.NetworkID = uint64(networkID)
+
+	rawTD := ctx.Args()[3]
+	td, err := strconv.Atoi(rawTD)
+	if err != nil {
+		exit("TD is not valid")
+	}
+	status.TD = big.NewInt(int64(td)) // TODO will this work?
+
+	var head [32]byte
+	copy(head[:], []byte((ctx.Args()[4]))[:])
+	status.Head	= head
+
+	var genHash [32]byte
+	copy(genHash[:], []byte(ctx.Args()[5])[:])
+	status.Genesis = genHash
+
+	rawForkID := []byte(ctx.Args()[6])
+
+	var hash [4]byte
+	copy(hash[:], rawForkID[:4])
+
+	var next uint64
+	binary.BigEndian.PutUint64(rawForkID[4:], next)
+
+	status.ForkID = forkid.ID{
+		Hash: hash,
+		Next: next,
+	}
+
+	return status
 }
