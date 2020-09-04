@@ -22,6 +22,7 @@ import (
 	"math/big"
 	"net"
 	"strconv"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -115,16 +116,108 @@ type statusData struct {
 	ForkID          forkid.ID
 }
 
+// protoHandshake is the RLP structure of the protocol handshake.
+type protoHandshake struct {
+	Version    uint64
+	Name       string
+	Caps       []p2p.Cap
+	ListenPort uint64
+	ID         []byte // secp256k1 public key
+
+	// Ignore additional fields (for forward compatibility).
+	Rest []rlp.RawValue `rlp:"tail"`
+}
+
 func getStatus(ctx *cli.Context) error {
 	// [protocolVersion: P, networkId: P, td: P, bestHash: B_32, genesisHash: B_32, forkID]
 	n := getNodeArg(ctx)
 	data := parseStatusMsg(ctx)
 
-	fmt.Println("\n\n\n")
-	fmt.Println(n)
-	fmt.Println(data)
+	fd, err := net.Dial("tcp", fmt.Sprintf("%v:%d", n.IP(), n.TCP()))
+	if err != nil {
+		return err
+	}
+	conn := rlpx.NewConn(fd, n.Pubkey())
 
-	return nil
+	// do encryption handshake
+	ourKey, _ := crypto.GenerateKey()
+	_, err = conn.Handshake(ourKey)
+	if err != nil {
+		return err
+	}
+
+	// create and write our protoHandshake
+	pub0    := crypto.FromECDSAPub(&ourKey.PublicKey)[1:]
+	ourHandshake := &protoHandshake{
+		Version:    3,
+		Caps:       []p2p.Cap{{"eth", 63}, {"eth", 64}},
+		ID:         pub0,
+	}
+
+	size, payload, err := rlp.EncodeToReader(ourHandshake)
+	if err != nil {
+		exit(fmt.Sprintf("could not encode protoHandshake to reader: %v", err))
+	}
+	handshakeMsgCode := 0x00
+
+	if _, err := conn.WriteMsg(uint64(handshakeMsgCode), uint32(size), payload); err != nil {
+		exit(fmt.Sprintf("could not write protoHandshake to connection: %v", err))
+	}
+
+
+	wg := sync.WaitGroup{}
+
+	// get protoHandshake
+	wg.Add(1)
+	go func() {
+		code, rawData, err := conn.Read()
+		if err != nil {
+			exit(fmt.Sprintf("could not read from connection: %v", err))
+		}
+		var h devp2pHandshake
+		if err := rlp.DecodeBytes(rawData, &h); err != nil {
+			exit(fmt.Sprintf("could not decode payload: %v", err))
+		}
+
+		fmt.Println("code: ", code, "\ndata: ", h)
+		wg.Done()
+	}()
+	wg.Wait()
+
+	// write status message
+
+	payloadBytes, err := rlp.EncodeToBytes(data)
+	if err != nil {
+		exit(fmt.Sprintf("cannot encode payload to bytes: %v", err))
+	}
+	size, payload, err = rlp.EncodeToReader(payloadBytes)
+	if err != nil {
+		exit(fmt.Sprintf("cannot encode payload to reader: %v", err))
+	}
+
+	_, err = conn.WriteMsg(uint64(1), uint32(size), payload)
+	if err != nil {
+		exit(fmt.Sprintf("cannot write to connection: %v", err))
+	}
+
+	// get status
+	wg.Add(1)
+	go func() {
+		code, rawData, err := conn.Read()
+		if err != nil {
+			exit(fmt.Sprintf("could not read from connection: %v", err))
+		}
+		var status statusData
+		if err := rlp.DecodeBytes(rawData, &status); err != nil {
+			exit(fmt.Sprintf("could not decode payload: %v", err))
+		}
+
+		fmt.Println("code: ", code, "\nstatus: ", status)
+		wg.Done()
+	}()
+	wg.Wait()
+
+	return err
 }
 
 func parseStatusMsg(ctx *cli.Context) (status statusData) { // TODO make sure to prevent panics
