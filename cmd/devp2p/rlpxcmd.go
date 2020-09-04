@@ -178,8 +178,7 @@ func getStatus(ctx *cli.Context) error {
 		if err := rlp.DecodeBytes(rawData, &h); err != nil {
 			exit(fmt.Sprintf("could not decode payload: %v", err))
 		}
-
-		fmt.Println("code: ", code, "\ndata: ", h)
+		fmt.Println("code: ", code, "\nhandshakeData: ", h)
 		wg.Done()
 	}()
 	wg.Wait()
@@ -207,12 +206,23 @@ func getStatus(ctx *cli.Context) error {
 		if err != nil {
 			exit(fmt.Sprintf("could not read from connection: %v", err))
 		}
-		var status statusData
-		if err := rlp.DecodeBytes(rawData, &status); err != nil {
-			exit(fmt.Sprintf("could not decode payload: %v", err))
-		}
 
-		fmt.Println("code: ", code, "\nstatus: ", status)
+		switch code {
+		case 1:
+			var reason [1]p2p.DiscReason
+			if err := rlp.DecodeBytes(rawData, &reason); err != nil {
+				exit(fmt.Sprintf("could not decode payload: %v", err))
+			}
+
+			fmt.Println("code: ", code, "\nstatus: ", reason)
+		case 16:
+			var status statusData
+			if err := rlp.DecodeBytes(rawData, &status); err != nil {
+				exit(fmt.Sprintf("could not decode payload: %v", err))
+			}
+
+			fmt.Println("code: ", code, "\nstatus: ", status)
+		}
 		wg.Done()
 	}()
 	wg.Wait()
