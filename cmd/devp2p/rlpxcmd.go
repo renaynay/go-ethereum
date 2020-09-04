@@ -17,11 +17,9 @@
 package main
 
 import (
-	"encoding/binary"
 	"fmt"
 	"math/big"
 	"net"
-	"strconv"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -52,7 +50,7 @@ var (
 	rlpxStatusCommand = cli.Command{
 		Name:      "status",
 		Usage:     "Get the given node's status",
-		ArgsUsage: "<node>", //TODO this might change
+		ArgsUsage: "<node>",
 		Action:    getStatus,
 	}
 )
@@ -186,22 +184,6 @@ func getStatus(ctx *cli.Context) error {
 	}()
 	wg.Wait()
 
-	// write status message
-	data := parseStatusMsg(ctx)
-	payloadBytes, err := rlp.EncodeToBytes(data)
-	if err != nil {
-		exit(fmt.Sprintf("cannot encode payload to bytes: %v", err))
-	}
-	size, payload, err = rlp.EncodeToReader(payloadBytes)
-	if err != nil {
-		exit(fmt.Sprintf("cannot encode payload to reader: %v", err))
-	}
-
-	_, err = conn.WriteMsg(uint64(1), uint32(size), payload)
-	if err != nil {
-		exit(fmt.Sprintf("cannot write to connection: %v", err))
-	}
-
 	// get status
 	wg.Add(1)
 	go func() {
@@ -231,50 +213,4 @@ func getStatus(ctx *cli.Context) error {
 	wg.Wait()
 
 	return err
-}
-
-func parseStatusMsg(ctx *cli.Context) (status statusData) { // TODO make sure to prevent panics
-	rawProtoVersion := ctx.Args()[1]
-	protoVersion, err := strconv.Atoi(rawProtoVersion)
-	if err != nil {
-		exit("protocol version is not uint32")
-	}
-	status.ProtocolVersion = uint32(protoVersion)
-
-	rawNetworkID := ctx.Args()[2]
-	networkID, err := strconv.Atoi(rawNetworkID)
-	if err != nil {
-		exit("network ID is not uint64")
-	}
-	status.NetworkID = uint64(networkID)
-
-	rawTD := ctx.Args()[3]
-	td, err := strconv.Atoi(rawTD)
-	if err != nil {
-		exit("TD is not valid")
-	}
-	status.TD = big.NewInt(int64(td)) // TODO will this work?
-
-	var head [32]byte
-	copy(head[:], []byte((ctx.Args()[4]))[:])
-	status.Head	= head
-
-	var genHash [32]byte
-	copy(genHash[:], []byte(ctx.Args()[5])[:])
-	status.Genesis = genHash
-
-	rawForkID := []byte(ctx.Args()[6])
-
-	var hash [4]byte
-	copy(hash[:], rawForkID[:4])
-
-	var next uint64
-	binary.BigEndian.PutUint64(rawForkID[4:], next)
-
-	status.ForkID = forkid.ID{
-		Hash: hash,
-		Next: next,
-	}
-
-	return status
 }
