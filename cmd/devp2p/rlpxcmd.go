@@ -69,18 +69,15 @@ type devp2pHandshake struct {
 }
 
 func rlpxPing(ctx *cli.Context) error {
-	n := getNodeArg(ctx)
-
-	fd, err := net.Dial("tcp", fmt.Sprintf("%v:%d", n.IP(), n.TCP()))
+	conn, err := createConn(ctx)
 	if err != nil {
-		return err
+		exit(fmt.Sprintf("could not connect to node: %v", err))
 	}
-	conn := rlpx.NewConn(fd, n.Pubkey())
-
+	// do enc handshake
 	ourKey, _ := crypto.GenerateKey()
 	_, err = conn.Handshake(ourKey)
 	if err != nil {
-		return err
+		exit(fmt.Sprintf("could not handshake with node: %v", err))
 	}
 
 	code, data, err := conn.Read()
@@ -106,6 +103,18 @@ func rlpxPing(ctx *cli.Context) error {
 	return nil
 }
 
+func createConn(ctx *cli.Context) (*rlpx.Conn, error) {
+	n := getNodeArg(ctx)
+
+	fd, err := net.Dial("tcp", fmt.Sprintf("%v:%d", n.IP(), n.TCP()))
+	if err != nil {
+		return nil, err
+	}
+	conn := rlpx.NewConn(fd, n.Pubkey())
+
+	return conn, nil
+}
+
 // statusData is the network packet for the status message for eth/64 and later.
 type statusData struct {
 	ProtocolVersion uint32
@@ -129,21 +138,16 @@ type protoHandshake struct {
 }
 
 func getStatus(ctx *cli.Context) error {
-	// [protocolVersion: P, networkId: P, td: P, bestHash: B_32, genesisHash: B_32, forkID]
-	n := getNodeArg(ctx)
-	data := parseStatusMsg(ctx)
-
-	fd, err := net.Dial("tcp", fmt.Sprintf("%v:%d", n.IP(), n.TCP()))
+	conn, err := createConn(ctx)
 	if err != nil {
-		return err
+		exit(fmt.Sprintf("could not connect to node: %v", err))
 	}
-	conn := rlpx.NewConn(fd, n.Pubkey())
 
-	// do encryption handshake
+	// do enc handshake
 	ourKey, _ := crypto.GenerateKey()
 	_, err = conn.Handshake(ourKey)
 	if err != nil {
-		return err
+		exit(fmt.Sprintf("could not handshake with node: %v", err))
 	}
 
 	// create and write our protoHandshake
@@ -164,7 +168,6 @@ func getStatus(ctx *cli.Context) error {
 		exit(fmt.Sprintf("could not write protoHandshake to connection: %v", err))
 	}
 
-
 	wg := sync.WaitGroup{}
 
 	// get protoHandshake
@@ -184,7 +187,7 @@ func getStatus(ctx *cli.Context) error {
 	wg.Wait()
 
 	// write status message
-
+	data := parseStatusMsg(ctx)
 	payloadBytes, err := rlp.EncodeToBytes(data)
 	if err != nil {
 		exit(fmt.Sprintf("cannot encode payload to bytes: %v", err))
