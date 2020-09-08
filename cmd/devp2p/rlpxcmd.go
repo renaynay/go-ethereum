@@ -19,14 +19,8 @@ package main
 import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/cmd/devp2p/internal/ethtest"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/internal/utesting"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/rlpx"
-	"github.com/ethereum/go-ethereum/rlp"
 	"gopkg.in/urfave/cli.v1"
-	"net"
 	"os"
 )
 
@@ -39,28 +33,20 @@ var (
 		Usage: "RLPx Commands",
 		Subcommands: []cli.Command{
 			rlpxEthTestCommand,
-			rlpxPingCommand,
-			//rlpxBlockHeadersCommand,
 		},
 	}
 	rlpxEthTestCommand = cli.Command{
 		Name:   "eth-test",
 		Usage:  "Runs tests against a node",
-		ArgsUsage: "<node>",
+		ArgsUsage: "<node> <path_to_chain.rlp_file>", // TODO maybe better?
 		Action: rlpxEthTest,
 		Flags:  []cli.Flag{testPatternFlag},
-	}
-	rlpxPingCommand = cli.Command{
-		Name:      "ping",
-		Usage:     "Perform a RLPx handshake",
-		ArgsUsage: "<node>",
-		Action:    rlpxPing,
 	}
 )
 
 
 func rlpxEthTest(ctx *cli.Context) error {
-	suite := ethtest.NewSuite(getNodeArg(ctx), "/Users/renenayman/Desktop/chain.rlp.gz") // TODO THIS SHOULD BE PASSED AS ARG
+	suite := ethtest.NewSuite(getNodeArg(ctx), parseFileName(ctx))
 
 	// Filter and run test cases.
 	tests := suite.AllTests()
@@ -75,53 +61,11 @@ func rlpxEthTest(ctx *cli.Context) error {
 	return nil
 }
 
-// devp2pHandshake is the RLP structure of the devp2p protocol handshake.
-type devp2pHandshake struct {
-	Version    uint64
-	Name       string
-	Caps       []p2p.Cap
-	ListenPort uint64
-	ID         hexutil.Bytes // secp256k1 public key
-	// Ignore additional fields (for forward compatibility).
-	Rest []rlp.RawValue `rlp:"tail"`
-}
-
-func rlpxPing(ctx *cli.Context) error {
-	conn, err := createConn(ctx)
-	if err != nil {
-		exit(fmt.Sprintf("could not connect to node: %v", err))
+func parseFileName(ctx *cli.Context) string {
+	if ctx.NArg() < 2 {
+		exit("missing path to chain.rlp as command-line argument")
 	}
-	// do enc handshake
-	ourKey, _ := crypto.GenerateKey()
-	_, err = conn.Handshake(ourKey)
-	if err != nil {
-		exit(fmt.Sprintf("could not handshake with node: %v", err))
-	}
-
-	switch msg := ethtest.Read(conn).(type) {
-	case *ethtest.Hello:
-		fmt.Printf("%+v\n", msg)
-	case *ethtest.Disc:
-		return fmt.Errorf("received disconnect message: %v", msg.Reason)
-	case *ethtest.Error:
-		return msg
-	default:
-		panic("unknown message code")
-	}
-
-	return nil
-}
-
-func createConn(ctx *cli.Context) (*rlpx.Conn, error) {
-	n := getNodeArg(ctx)
-
-	fd, err := net.Dial("tcp", fmt.Sprintf("%v:%d", n.IP(), n.TCP()))
-	if err != nil {
-		return nil, err
-	}
-	conn := rlpx.NewConn(fd, n.Pubkey())
-
-	return conn, nil
+	return ctx.Args()[1]
 }
 
 // TODO make a test chain, long enough for tests to work, 2000 blocks max

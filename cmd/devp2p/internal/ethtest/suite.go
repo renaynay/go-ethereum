@@ -30,11 +30,13 @@ func NewSuite(dest *enode.Node, chainfile string) *Suite {
 		panic(err)
 	}
 	return &Suite{
-		 Dest: dest,
-		 blocks: blocks,
+		Dest:   dest,
+		blocks: blocks,
 	}
 }
 
+// loadChain takes the given chain.rlp file, and decodes and returns
+// the blocks from the file.
 func loadChain(chainfile string) ([]*types.Block, error) {
 	// Open the file handle and potentially unwrap the gzip stream
 	fh, err := os.Open(chainfile)
@@ -51,7 +53,7 @@ func loadChain(chainfile string) ([]*types.Block, error) {
 	}
 	stream := rlp.NewStream(reader, 0)
 	var blocks []*types.Block
-	for i := 0;; i++ {
+	for i := 0; ; i++ {
 		var b types.Block
 		if err := stream.Decode(&b); err == io.EOF {
 			break
@@ -66,13 +68,29 @@ func loadChain(chainfile string) ([]*types.Block, error) {
 
 func (s *Suite) AllTests() []utesting.Test {
 	return []utesting.Test{
-		{
-			"Status",
-			s.TestStatus,
-		},
+		{"Ping", s.TestPing},
+		{"Status", s.TestStatus},
 	}
 }
 
+// TestPing // TODO
+func (s *Suite) TestPing(t *utesting.T) {
+	conn, err := s.dial()
+	if err != nil {
+		t.Fatalf("could not dial: %v", err)
+	}
+
+	switch msg := Read(conn).(type) {
+	case *Hello:
+		fmt.Printf("%+v\n", msg)
+	default:
+		t.Fatalf("bad message: %v", msg)
+	}
+}
+
+// TestStatus connects to the given node and exchanges
+// a status message with it, and then checks to make sure
+// the chain head is correct.
 func (s *Suite) TestStatus(t *utesting.T) {
 	conn, err := s.dial()
 	if err != nil {
