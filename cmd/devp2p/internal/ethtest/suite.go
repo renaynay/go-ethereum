@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/rlpx"
 	"github.com/ethereum/go-ethereum/rlp"
 	"io"
+	"math/big"
 	"net"
 	"os"
 	"strings"
@@ -70,33 +71,30 @@ func (s *Suite) AllTests() []utesting.Test {
 	return []utesting.Test{
 		{"Ping", s.TestPing},
 		{"Status", s.TestStatus},
+		{"GetBlockHeaders", s.TestGetBlockHeaders},
 	}
 }
 
-// TestPing // TODO
+// TestPing attempts to exchange `HELLO` messages
+// with the given node.
 func (s *Suite) TestPing(t *utesting.T) {
 	conn, err := s.dial()
 	if err != nil {
 		t.Fatalf("could not dial: %v", err)
 	}
-
-	switch msg := Read(conn).(type) {
-	case *Hello:
-		fmt.Printf("%+v\n", msg)
-	default:
-		t.Fatalf("bad message: %v", msg)
-	}
+	// get protoHandshake
+	msg := s.handshake(conn, t)
+	fmt.Printf("%+v\n", msg)
 }
 
-// TestStatus connects to the given node and exchanges
-// a status message with it, and then checks to make sure
+// TestStatus attempts to connect to the given node and exchange
+// a status message with it, and then check to make sure
 // the chain head is correct.
 func (s *Suite) TestStatus(t *utesting.T) {
 	conn, err := s.dial()
 	if err != nil {
 		t.Fatalf("could not dial: %v", err)
 	}
-
 	// create and write our protoHandshake
 	pub0 := crypto.FromECDSAPub(&s.OurKey.PublicKey)[1:]
 	ourHandshake := &Hello{
@@ -107,27 +105,81 @@ func (s *Suite) TestStatus(t *utesting.T) {
 	if err := Write(conn, ourHandshake); err != nil {
 		t.Fatalf("could not write to connection: %v", err)
 	}
-
 	// get protoHandshake
-	switch msg := Read(conn).(type) {
-	case *Hello:
-		fmt.Printf("%+v\n", msg)
-	default:
-		t.Fatalf("bad message: %v", msg)
+	s.handshake(conn, t)
+	// get status
+	msg := s.statusExchange(conn, t)
+	fmt.Printf("%+v\n", msg)
+}
+
+// TestGetBlockHeaders // TODO THIS IS BROKEN
+func (s *Suite) TestGetBlockHeaders(t *utesting.T) {
+	conn, err := s.dial()
+	if err != nil {
+		t.Fatalf("could not dial: %v", err)
 	}
 
-	// get status msg
+	s.handshake(conn, t)
+	s.statusExchange(conn, t)
+
+	// write status message
+	status := &Status{
+		ProtocolVersion: 64,
+		NetworkID:       1,
+		TD:              big.NewInt(262144016),
+		Head:            s.blocks[len(s.blocks)-1].Hash(),
+		Genesis:         s.blocks[0].Hash(),
+	}
+	if err := Write(conn, status)
+		err != nil {
+		t.Fatalf("could not write to connection: %v", err)
+	}
+
+	// TODO loop to wait for msgs from the node?
+
+	// get block headers // TODO eventually make this customizable with CL args (take from a file)?
+	req := &GetBlockHeaders{
+		Origin:  HashOrNumber{
+			Hash: s.blocks[0].Hash(),
+		},
+		Amount:  1,
+	}
+
+	fmt.Println("HERE")
+	if err := Write(conn, req); err != nil {
+		t.Fatalf("could not write to connection: %v", err)
+	}
+
+	msg := Read(conn)
+	fmt.Println(msg)
+}
+
+func (s *Suite) statusExchange(conn *rlpx.Conn, t *utesting.T) Message {
 	switch msg := Read(conn).(type) {
 	case *Status:
-		fmt.Printf("%+v\n", msg)
 		if msg.Head != s.blocks[len(s.blocks)-1].Hash() {
 			t.Fatalf("wrong head in status exchange: %v", msg.Head)
 		}
+		return msg
 	default:
-		t.Fatalf("bad message: %v", msg)
+		t.Fatalf("bad status message: %v", msg)
+		return nil
 	}
 }
 
+// handshake checks to make sure a `HELLO` is received.
+func (s *Suite) handshake(conn *rlpx.Conn, t *utesting.T) Message {
+	switch msg := Read(conn).(type) {
+	case *Hello:
+		return msg
+	default:
+		t.Fatalf("bad handshake: %v", msg)
+		return nil
+	}
+}
+
+// dial attempts to dial the given node and perform a handshake,
+// returning the created Conn if successful.
 func (s *Suite) dial() (*rlpx.Conn, error) {
 	fd, err := net.Dial("tcp", fmt.Sprintf("%v:%d", s.Dest.IP(), s.Dest.TCP()))
 	if err != nil {

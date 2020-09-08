@@ -55,9 +55,9 @@ func rlpxEthTest(ctx *cli.Context) error {
 	}
 	results := utesting.RunTests(tests, os.Stdout)
 	if fails := utesting.CountFailures(results); fails > 0 {
-		return fmt.Errorf("%v/%v tests passed.", len(tests)-fails, len(tests))
+		return fmt.Errorf("%v of %v tests passed.", len(tests)-fails, len(tests))
 	}
-	fmt.Printf("%v/%v passed\n", len(tests), len(tests))
+	fmt.Printf("all tests passed\n")
 	return nil
 }
 
@@ -68,9 +68,6 @@ func parseFileName(ctx *cli.Context) string {
 	return ctx.Args()[1]
 }
 
-// TODO make a test chain, long enough for tests to work, 2000 blocks max
-
-//
 //func rlpxGetBlockHeaders(ctx *cli.Context) error {
 //	// TODO Duplicate code, put in separate func later
 //	conn, err := createConn(ctx)

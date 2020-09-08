@@ -30,6 +30,10 @@ func Read(conn *rlpx.Conn) Message {
 		msg = new(Disc)
 	case (Status{}).Code():
 		msg = new(Status)
+	case (GetBlockHeaders{}).Code():
+		msg = new(GetBlockHeaders)
+	case (BlockHeaders{}).Code():
+		msg = new(BlockHeaders)
 	default:
 		return &Error{fmt.Errorf("invalid message code: %d", code)}
 	}
@@ -113,6 +117,10 @@ type GetBlockHeaders struct {
 	Skip    uint64       // Blocks to skip between consecutive headers
 	Reverse bool         // Query direction (false = rising towards latest, true = falling towards genesis)
 }
+func (g GetBlockHeaders) Code() int { return 19 }
+
+type BlockHeaders []*types.Header
+func (bh BlockHeaders) Code() int { return 20 }
 
 // NewBlock is the network packet for the block propagation message.
 type NewBlock struct {
