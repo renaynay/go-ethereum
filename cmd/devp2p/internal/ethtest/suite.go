@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/forkid"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/internal/utesting"
@@ -99,7 +100,7 @@ func (s *Suite) TestStatus(t *utesting.T) {
 	pub0 := crypto.FromECDSAPub(&s.OurKey.PublicKey)[1:]
 	ourHandshake := &Hello{
 		Version: 3,
-		Caps:    []p2p.Cap{{"eth", 63}, {"eth", 64}},
+		Caps:    []p2p.Cap{{"eth", 64}, {"eth", 65}},
 		ID:      pub0,
 	}
 	if err := Write(conn, ourHandshake); err != nil {
@@ -108,53 +109,72 @@ func (s *Suite) TestStatus(t *utesting.T) {
 	// get protoHandshake
 	s.handshake(conn, t)
 	// get status
-	msg := s.statusExchange(conn, t)
+	msg := s.getStatus(conn, t)
 	fmt.Printf("%+v\n", msg)
 }
 
-// TestGetBlockHeaders // TODO THIS IS BROKEN
+// TestGetBlockHeaders // TODO
 func (s *Suite) TestGetBlockHeaders(t *utesting.T) {
 	conn, err := s.dial()
 	if err != nil {
 		t.Fatalf("could not dial: %v", err)
 	}
 
+	// create and write our protoHandshake
+	pub0 := crypto.FromECDSAPub(&s.OurKey.PublicKey)[1:]
+	ourHandshake := &Hello{
+		Version: 3,
+		Caps:    []p2p.Cap{{"eth", 64}, {"eth", 65}},
+		ID:      pub0,
+	}
+	if err := Write(conn, ourHandshake); err != nil {
+		t.Fatalf("could not write to connection: %v", err)
+	}
+	// get protoHandshake
 	s.handshake(conn, t)
-	s.statusExchange(conn, t)
+	s.getStatus(conn, t)
 
 	// write status message
-	status := &Status{
-		ProtocolVersion: 64,
+	status := Status{
+		ProtocolVersion: 65,
 		NetworkID:       1,
 		TD:              big.NewInt(262144016),
 		Head:            s.blocks[len(s.blocks)-1].Hash(),
 		Genesis:         s.blocks[0].Hash(),
+		ForkID: forkid.ID{
+			Hash: [4]byte{80, 147, 31, 15},
+			Next: 0,
+		},
 	}
 	if err := Write(conn, status)
 		err != nil {
 		t.Fatalf("could not write to connection: %v", err)
 	}
 
-	// TODO loop to wait for msgs from the node?
-
 	// get block headers // TODO eventually make this customizable with CL args (take from a file)?
 	req := &GetBlockHeaders{
-		Origin:  HashOrNumber{
-			Hash: s.blocks[0].Hash(),
+		Origin:  hashOrNumber{
+			Hash: s.blocks[1].Hash(),
 		},
-		Amount:  1,
+		Amount:  2,
+		Skip: 1,
+		Reverse: false,
 	}
 
-	fmt.Println("HERE")
 	if err := Write(conn, req); err != nil {
 		t.Fatalf("could not write to connection: %v", err)
 	}
 
 	msg := Read(conn)
-	fmt.Println(msg)
+	switch msg.Code() {
+	case 20:
+		fmt.Printf("block header(s): %+v\n", msg)
+	default:
+		t.Fatalf("error reading message: ", msg)
+	}
 }
 
-func (s *Suite) statusExchange(conn *rlpx.Conn, t *utesting.T) Message {
+func (s *Suite) getStatus(conn *rlpx.Conn, t *utesting.T) Message {
 	switch msg := Read(conn).(type) {
 	case *Status:
 		if msg.Head != s.blocks[len(s.blocks)-1].Hash() {
@@ -168,7 +188,7 @@ func (s *Suite) statusExchange(conn *rlpx.Conn, t *utesting.T) Message {
 }
 
 // handshake checks to make sure a `HELLO` is received.
-func (s *Suite) handshake(conn *rlpx.Conn, t *utesting.T) Message {
+func (s *Suite) handshake(conn *rlpx.Conn, t *utesting.T) Message { // TODO maybe rename to protoHandshake?
 	switch msg := Read(conn).(type) {
 	case *Hello:
 		return msg
@@ -187,6 +207,7 @@ func (s *Suite) dial() (*rlpx.Conn, error) {
 	}
 	conn := rlpx.NewConn(fd, s.Dest.Pubkey())
 
+	// do encHandshake
 	s.OurKey, _ = crypto.GenerateKey()
 	_, err = conn.Handshake(s.OurKey)
 	if err != nil {
