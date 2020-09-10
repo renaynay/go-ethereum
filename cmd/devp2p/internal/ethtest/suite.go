@@ -168,7 +168,13 @@ func (s *Suite) TestGetBlockHeaders(t *utesting.T) {
 	msg := Read(conn)
 	switch msg.Code() {
 	case 20:
-		fmt.Printf("block header(s): %+v\n", msg)
+		headers, ok := msg.(*BlockHeaders)
+		if !ok {
+			t.Fatalf("message %v does not match code %d", msg, msg.Code())
+		}
+		for _, header := range *headers {
+			fmt.Printf("\nHEADER FOR BLOCK NUMBER %d: %+v\n", header.Number, header)
+		}
 	default:
 		t.Fatalf("error reading message: ", msg)
 	}
