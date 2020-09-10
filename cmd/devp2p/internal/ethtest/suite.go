@@ -236,6 +236,29 @@ func (s *Suite) TestGetBlockBodies(t *utesting.T) {
 	}
 }
 
+func (s *Suite) TestBroadcast(t *utesting.T) {
+	// create a connection to send a block announcement
+	sendConn, err := s.dial()
+	if err != nil {
+		t.Fatalf("could not dial: %v", err)
+	}
+	// create a connection to receive a block announcement
+	receiveConn, err := s.dial()
+	if err != nil {
+		t.Fatalf("could not dial: %v", err)
+	}
+
+	s.handshake(sendConn, t)
+	s.handshake(receiveConn, t)
+
+	s.statusExchange(sendConn, t)
+	s.statusExchange(receiveConn, t)
+
+	blockAnnouncement := &NewBlockHashes{}
+
+
+}
+
 // dial attempts to dial the given node and perform a handshake,
 // returning the created Conn if successful.
 func (s *Suite) dial() (*rlpx.Conn, error) {

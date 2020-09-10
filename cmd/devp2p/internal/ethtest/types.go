@@ -108,6 +108,13 @@ type NewBlockHashes []struct {
 	Hash   common.Hash // Hash of one particular block being announced
 	Number uint64      // Number of one particular block being announced
 }
+func (nbh NewBlockHashes) Code() int { return 17 }
+
+// NewBlock is the network packet for the block propagation message.
+type NewBlock struct {
+	Block *types.Block
+	TD    *big.Int
+}
 
 // GetBlockHeaders represents a block header query.
 type GetBlockHeaders struct {
@@ -120,12 +127,6 @@ func (g GetBlockHeaders) Code() int { return 19 }
 
 type BlockHeaders []*types.Header
 func (bh BlockHeaders) Code() int { return 20 }
-
-// NewBlock is the network packet for the block propagation message.
-type NewBlock struct {
-	Block *types.Block
-	TD    *big.Int
-}
 
 // HashOrNumber is a combined field for specifying an origin block.
 type hashOrNumber struct {
