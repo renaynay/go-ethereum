@@ -35,6 +35,10 @@ func Read(conn *rlpx.Conn) Message {
 		msg = new(GetBlockHeaders)
 	case (BlockHeaders{}).Code():
 		msg = new(BlockHeaders)
+	case (GetBlockBodies{}).Code():
+		msg = new(GetBlockBodies)
+	case (BlockBodies{}).Code():
+		msg = new(BlockBodies)
 	default:
 		return &Error{fmt.Errorf("invalid message code: %d", code)}
 	}
@@ -123,9 +127,6 @@ type NewBlock struct {
 	TD    *big.Int
 }
 
-// BlockBodies is the network packet for block content distribution.
-type BlockBodies []*BlockBody
-
 // HashOrNumber is a combined field for specifying an origin block.
 type hashOrNumber struct {
 	Hash   common.Hash // Block hash from which to retrieve headers (excludes Number)
@@ -162,8 +163,11 @@ func (hn *hashOrNumber) DecodeRLP(s *rlp.Stream) error {
 	return err
 }
 
-// BlockBody represents the data content of a single block.
-type BlockBody struct {
-	Transactions []*types.Transaction // Transactions contained within a block
-	Uncles       []*types.Header      // Uncles contained within a block
-}
+// GetBlockBodies represents a GetBlockBodies request
+type GetBlockBodies []common.Hash
+func (gbb GetBlockBodies) Code() int { return 21 }
+
+// BlockBodies is the network packet for block content distribution.
+type BlockBodies []*types.Body
+func (bb BlockBodies) Code() int { return 22 }
+
