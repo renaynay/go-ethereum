@@ -1,76 +1,109 @@
 package ethtest
 
 import (
-	"compress/gzip"
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/forkid"
-	"github.com/ethereum/go-ethereum/core/types"
+
+	"github.com/stretchr/testify/assert"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/internal/utesting"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/rlpx"
-	"github.com/ethereum/go-ethereum/rlp"
-	"io"
-	"math/big"
 	"net"
-	"os"
-	"strings"
+	"reflect"
 )
+
+// TODO REPLACE PRINT WITH T.LOGF
+// todo use assert for comparisons
 
 // Suite represents a structure used to test the eth
 // protocol of a node(s).
 type Suite struct {
-	Dest   *enode.Node
-	OurKey *ecdsa.PrivateKey
+	Dest *enode.Node
 
-	blocks []*types.Block
+	// TODO FULL CHAIN vs CHAIN (SO THAT YOU CAN RUN TESTS IN ANY ORDER BC BLOCK PROP TEST WILL INCREMENT CHAIN)
+	chain     *Chain
+	fullChain *Chain
+}
+
+type Conn struct {
+	*rlpx.Conn
+	ourKey *ecdsa.PrivateKey
+}
+
+// handshake checks to make sure a `HELLO` is received.
+func (c *Conn) handshake(t *utesting.T) Message {
+	// write protoHandshake to client
+	pub0 := crypto.FromECDSAPub(&c.ourKey.PublicKey)[1:]
+	ourHandshake := &Hello{
+		Version: 3,
+		Caps:    []p2p.Cap{{"eth", 64}, {"eth", 65}},
+		ID:      pub0,
+	}
+	if err := Write(c.Conn, ourHandshake); err != nil {
+		t.Fatalf("could not write to connection: %v", err)
+	}
+	// read protoHandshake from client
+	switch msg := Read(c.Conn).(type) {
+	case *Hello:
+		return msg
+	default:
+		t.Fatalf("bad handshake: %v", msg)
+		return nil
+	}
+}
+
+// statusExchange performs a `Status` message exchange with the given
+// node.
+func (c *Conn) statusExchange(t *utesting.T, chain *Chain) Message {
+	// read status message from client
+	var message Message
+	switch msg := Read(c.Conn).(type) {
+	case *Status: // TODO you can impl more checks here (TD for ex.)
+		if msg.Head != chain.blocks[chain.Len()-1].Hash() {
+			t.Fatalf("wrong head in status: %v", msg.Head)
+		}
+		if msg.TD.Cmp(chain.TD(chain.Len())) != 0 {
+			t.Fatalf("wrong TD in status: %v", msg.TD)
+		}
+		if !reflect.DeepEqual(msg.ForkID, chain.ForkID()) {
+			t.Fatalf("wrong fork ID in status: %v", msg.ForkID)
+		}
+		message = msg
+	default:
+		t.Fatalf("bad status message: %v", msg)
+	}
+	// write status message to client
+	status := Status{
+		ProtocolVersion: 65,
+		NetworkID:       1,
+		TD:              chain.TD(chain.Len()),
+		Head:            chain.blocks[chain.Len()-1].Hash(),
+		Genesis:         chain.blocks[0].Hash(),
+		ForkID:          chain.ForkID(),
+	}
+	if err := Write(c.Conn, status)
+		err != nil {
+		t.Fatalf("could not write to connection: %v", err)
+	}
+
+	return message
 }
 
 // NewSuite creates and returns a new eth-test suite that can
 // be used to test the given node against the given blockchain
 // data.
-func NewSuite(dest *enode.Node, chainfile string) *Suite {
-	blocks, err := loadChain(chainfile)
+func NewSuite(dest *enode.Node, chainfile string, genesisfile string) *Suite {
+	chain, err := loadChain(chainfile, genesisfile)
 	if err != nil {
 		panic(err)
 	}
 	return &Suite{
-		Dest:   dest,
-		blocks: blocks,
+		Dest: dest,
+		chain: chain.Shorten(1000),
+		fullChain: chain,
 	}
-}
-
-// loadChain takes the given chain.rlp file, and decodes and returns
-// the blocks from the file.
-func loadChain(chainfile string) ([]*types.Block, error) {
-	// Open the file handle and potentially unwrap the gzip stream
-	fh, err := os.Open(chainfile)
-	if err != nil {
-		return nil, err
-	}
-	defer fh.Close()
-
-	var reader io.Reader = fh
-	if strings.HasSuffix(chainfile, ".gz") {
-		if reader, err = gzip.NewReader(reader); err != nil {
-			return nil, err
-		}
-	}
-	stream := rlp.NewStream(reader, 0)
-	var blocks []*types.Block
-	for i := 0; ; i++ {
-		var b types.Block
-		if err := stream.Decode(&b); err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, fmt.Errorf("at block %d: %v", i, err)
-		}
-		blocks = append(blocks, &b)
-	}
-
-	return blocks, nil
 }
 
 func (s *Suite) AllTests() []utesting.Test {
@@ -79,6 +112,7 @@ func (s *Suite) AllTests() []utesting.Test {
 		{"Status", s.TestStatus},
 		{"GetBlockHeaders", s.TestGetBlockHeaders},
 		{"GetBlockBodies", s.TestGetBlockBodies},
+		{"Broadcast", s.TestBroadcast},
 	}
 }
 
@@ -90,30 +124,8 @@ func (s *Suite) TestPing(t *utesting.T) {
 		t.Fatalf("could not dial: %v", err)
 	}
 	// get protoHandshake
-	msg := s.handshake(conn, t)
+	msg := conn.handshake(t)
 	fmt.Printf("%+v\n", msg)
-}
-
-// handshake checks to make sure a `HELLO` is received.
-func (s *Suite) handshake(conn *rlpx.Conn, t *utesting.T) Message {
-	// write protoHandshake to client
-	pub0 := crypto.FromECDSAPub(&s.OurKey.PublicKey)[1:]
-	ourHandshake := &Hello{
-		Version: 3,
-		Caps:    []p2p.Cap{{"eth", 64}, {"eth", 65}},
-		ID:      pub0,
-	}
-	if err := Write(conn, ourHandshake); err != nil {
-		t.Fatalf("could not write to connection: %v", err)
-	}
-	// read protoHandshake from client
-	switch msg := Read(conn).(type) {
-	case *Hello:
-		return msg
-	default:
-		t.Fatalf("bad handshake: %v", msg)
-		return nil
-	}
 }
 
 // TestStatus attempts to connect to the given node and exchange
@@ -125,44 +137,10 @@ func (s *Suite) TestStatus(t *utesting.T) {
 		t.Fatalf("could not dial: %v", err)
 	}
 	// get protoHandshake
-	s.handshake(conn, t)
+	conn.handshake(t)
 	// get status
-	msg := s.statusExchange(conn, t) // todo make this a switch
+	msg := conn.statusExchange(t, s.chain) // todo make this a switch
 	fmt.Printf("%+v\n", msg)
-}
-
-// statusExchange performs a `Status` message exchange with the given
-// node.
-func (s *Suite) statusExchange(conn *rlpx.Conn, t *utesting.T) Message {
-	// read status message from client
-	var message Message
-	switch msg := Read(conn).(type) {
-	case *Status:
-		if msg.Head != s.blocks[len(s.blocks)-1].Hash() {
-			t.Fatalf("wrong head in status exchange: %v", msg.Head)
-		}
-		message = msg
-	default:
-		t.Fatalf("bad status message: %v", msg)
-	}
-	// write status message to client
-	status := Status{
-		ProtocolVersion: 65,
-		NetworkID:       1,
-		TD:              big.NewInt(262144016),
-		Head:            s.blocks[len(s.blocks)-1].Hash(),
-		Genesis:         s.blocks[0].Hash(),
-		ForkID: forkid.ID{
-			Hash: [4]byte{80, 147, 31, 15},
-			Next: 0,
-		},
-	}
-	if err := Write(conn, status)
-		err != nil {
-		t.Fatalf("could not write to connection: %v", err)
-	}
-
-	return message
 }
 
 // TestGetBlockHeaders tests whether the given node can respond to
@@ -173,24 +151,24 @@ func (s *Suite) TestGetBlockHeaders(t *utesting.T) {
 		t.Fatalf("could not dial: %v", err)
 	}
 
-	s.handshake(conn, t)
-	s.statusExchange(conn, t)
+	conn.handshake(t)
+	conn.statusExchange(t, s.chain)
 
 	// get block headers // TODO eventually make this customizable with CL args (take from a file)?
 	req := &GetBlockHeaders{
-		Origin:  hashOrNumber{
-			Hash: s.blocks[1].Hash(),
+		Origin: hashOrNumber{
+			Hash: s.chain.blocks[1].Hash(),
 		},
 		Amount:  2,
-		Skip: 1,
+		Skip:    1,
 		Reverse: false,
 	}
 
-	if err := Write(conn, req); err != nil {
+	if err := Write(conn.Conn, req); err != nil {
 		t.Fatalf("could not write to connection: %v", err)
 	}
 
-	msg := Read(conn)
+	msg := Read(conn.Conn)
 	switch msg.Code() {
 	case 20:
 		headers, ok := msg.(*BlockHeaders)
@@ -213,15 +191,15 @@ func (s *Suite) TestGetBlockBodies(t *utesting.T) {
 		t.Fatalf("could not dial: %v", err)
 	}
 
-	s.handshake(conn, t)
-	s.statusExchange(conn, t)
+	conn.handshake(t)
+	conn.statusExchange(t, s.chain)
 	// create block bodies request
-	req := &GetBlockBodies{s.blocks[54].Hash(), s.blocks[75].Hash()}
-	if err := Write(conn, req); err != nil {
+	req := &GetBlockBodies{s.chain.blocks[54].Hash(), s.chain.blocks[75].Hash()}
+	if err := Write(conn.Conn, req); err != nil {
 		t.Fatalf("could not write to connection: %v", err)
 	}
 
-	msg := Read(conn)
+	msg := Read(conn.Conn)
 	switch msg.Code() {
 	case 22:
 		bodies, ok := msg.(*BlockBodies)
@@ -236,44 +214,62 @@ func (s *Suite) TestGetBlockBodies(t *utesting.T) {
 	}
 }
 
+// TestBroadcast // TODO how to make sure this is compatible with the imported blockchain of the node
 func (s *Suite) TestBroadcast(t *utesting.T) {
-	// create a connection to send a block announcement
+	// create conn to send block announcement
 	sendConn, err := s.dial()
 	if err != nil {
 		t.Fatalf("could not dial: %v", err)
 	}
-	// create a connection to receive a block announcement
+	// create conn to receive block announcement
 	receiveConn, err := s.dial()
 	if err != nil {
 		t.Fatalf("could not dial: %v", err)
 	}
 
-	s.handshake(sendConn, t)
-	s.handshake(receiveConn, t)
+	sendConn.handshake(t)
+	receiveConn.handshake(t)
 
-	s.statusExchange(sendConn, t)
-	s.statusExchange(receiveConn, t)
+	sendConn.statusExchange(t, s.chain)
+	receiveConn.statusExchange(t, s.chain)
 
-	blockAnnouncement := &NewBlockHashes{}
+	// sendConn sends the block announcement
+	blockAnnouncement := &NewBlock{
+		Block: s.fullChain.blocks[1000],
+		TD: s.fullChain.TD(1001),
+	}
+	if err := Write(sendConn.Conn, blockAnnouncement); err != nil {
+		t.Fatalf("could not write to connection: %v", err)
+	}
 
-
+	switch msg := Read(receiveConn.Conn).(type) {
+	case *NewBlock:
+		assert.Equal(t, blockAnnouncement.Block.Header(), msg.Block.Header(),
+			"wrong block header in announcement")
+		assert.Equal(t, blockAnnouncement.TD, msg.TD,
+			"wrong TD in announcement")
+	default:
+		t.Fatal(msg)
+	}
 }
 
 // dial attempts to dial the given node and perform a handshake,
 // returning the created Conn if successful.
-func (s *Suite) dial() (*rlpx.Conn, error) {
+func (s *Suite) dial() (*Conn, error) {
+	var conn Conn
+
 	fd, err := net.Dial("tcp", fmt.Sprintf("%v:%d", s.Dest.IP(), s.Dest.TCP()))
 	if err != nil {
 		return nil, err
 	}
-	conn := rlpx.NewConn(fd, s.Dest.Pubkey())
+	conn.Conn = rlpx.NewConn(fd, s.Dest.Pubkey())
 
 	// do encHandshake
-	s.OurKey, _ = crypto.GenerateKey()
-	_, err = conn.Handshake(s.OurKey)
+	conn.ourKey, _ = crypto.GenerateKey()
+	_, err = conn.Handshake(conn.ourKey)
 	if err != nil {
 		return nil, err
 	}
 
-	return conn, nil
+	return &conn, nil
 }

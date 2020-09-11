@@ -39,6 +39,8 @@ func Read(conn *rlpx.Conn) Message {
 		msg = new(GetBlockBodies)
 	case (BlockBodies{}).Code():
 		msg = new(BlockBodies)
+	case (NewBlock{}).Code():
+		msg = new(NewBlock)
 	default:
 		return &Error{fmt.Errorf("invalid message code: %d", code)}
 	}
@@ -50,7 +52,7 @@ func Read(conn *rlpx.Conn) Message {
 	return msg
 }
 
-func Write(conn *rlpx.Conn, msg Message) error {
+func Write(conn *rlpx.Conn, msg Message) error { // TODO eventually put this method on the Conn
 	size, payload, err := rlp.EncodeToReader(msg)
 	if err != nil {
 		return err
@@ -115,6 +117,7 @@ type NewBlock struct {
 	Block *types.Block
 	TD    *big.Int
 }
+func (nb NewBlock) Code() int { return 23 }
 
 // GetBlockHeaders represents a block header query.
 type GetBlockHeaders struct {
