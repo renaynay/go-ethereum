@@ -41,6 +41,8 @@ func Read(conn *rlpx.Conn) Message {
 		msg = new(BlockBodies)
 	case (NewBlock{}).Code():
 		msg = new(NewBlock)
+	case (NewBlockHashes{}).Code():
+		msg = new(NewBlockHashes)
 	default:
 		return &Error{fmt.Errorf("invalid message code: %d", code)}
 	}

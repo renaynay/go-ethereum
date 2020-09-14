@@ -111,8 +111,8 @@ func (s *Suite) AllTests() []utesting.Test {
 		{"Ping", s.TestPing},
 		{"Status", s.TestStatus},
 		{"GetBlockHeaders", s.TestGetBlockHeaders},
-		{"GetBlockBodies", s.TestGetBlockBodies},
 		{"Broadcast", s.TestBroadcast},
+		{"GetBlockBodies", s.TestGetBlockBodies},
 	}
 }
 
@@ -248,8 +248,20 @@ func (s *Suite) TestBroadcast(t *utesting.T) {
 			"wrong block header in announcement")
 		assert.Equal(t, blockAnnouncement.TD, msg.TD,
 			"wrong TD in announcement")
+	case *NewBlockHashes:
+		t.Log("NEW BLOCK HASHES: ", "%+v\n", msg) // TODO impl some check here
 	default:
 		t.Fatal(msg)
+	}
+
+	newChain := s.chain.blocks
+	newChain = append(newChain, s.fullChain.blocks[1000])
+
+	config := *s.chain.chainConfig
+
+	s.chain = &Chain{
+		blocks: newChain,
+		chainConfig: &config,
 	}
 }
 
