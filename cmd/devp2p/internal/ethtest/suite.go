@@ -16,15 +16,11 @@ import (
 	"reflect"
 )
 
-// TODO REPLACE PRINT WITH T.LOGF
-// todo use assert for comparisons
-
 // Suite represents a structure used to test the eth
 // protocol of a node(s).
 type Suite struct {
 	Dest *enode.Node
-
-	// TODO FULL CHAIN vs CHAIN (SO THAT YOU CAN RUN TESTS IN ANY ORDER BC BLOCK PROP TEST WILL INCREMENT CHAIN)
+	
 	chain     *Chain
 	fullChain *Chain
 }
@@ -62,12 +58,8 @@ func (c *Conn) statusExchange(t *utesting.T, chain *Chain) Message {
 	// read status message from client
 	var message Message
 	switch msg := Read(c.Conn).(type) {
-	case *Status: // TODO you can impl more checks here (TD for ex.)
+	case *Status:
 		if msg.Head != chain.blocks[chain.Len()-1].Hash() {
-			fmt.Println("our chain length: ", chain.Len())      // TODO REMOVE
-			if msg.Head == chain.blocks[chain.Len()-2].Hash() { // TODO REMOVE
-				fmt.Println("SOMETHING IS WRONG?") // TODO REMOVE
-			}
 			t.Fatalf("wrong head in status: %v", msg.Head)
 		}
 		if msg.TD.Cmp(chain.TD(chain.Len())) != 0 {
@@ -152,7 +144,7 @@ func (s *Suite) TestPing(t *utesting.T) {
 	}
 	// get protoHandshake
 	msg := conn.handshake(t)
-	fmt.Printf("%+v\n", msg)
+	t.Logf("%+v\n", msg)
 }
 
 // TestStatus attempts to connect to the given node and exchange
@@ -167,7 +159,7 @@ func (s *Suite) TestStatus(t *utesting.T) {
 	conn.handshake(t)
 	// get status
 	msg := conn.statusExchange(t, s.chain) // todo make this a switch
-	fmt.Printf("%+v\n", msg)
+	t.Logf("%+v\n", msg)
 }
 
 // TestGetBlockHeaders tests whether the given node can respond to
@@ -203,7 +195,7 @@ func (s *Suite) TestGetBlockHeaders(t *utesting.T) {
 			t.Fatalf("message %v does not match code %d", msg, msg.Code())
 		}
 		for _, header := range *headers {
-			fmt.Printf("\nHEADER FOR BLOCK NUMBER %d: %+v\n", header.Number, header) // TODO eventually check against our own data
+			t.Logf("\nHEADER FOR BLOCK NUMBER %d: %+v\n", header.Number, header) // TODO eventually check against our own data
 		}
 	default:
 		t.Fatalf("error reading message: %v", msg)
@@ -234,7 +226,7 @@ func (s *Suite) TestGetBlockBodies(t *utesting.T) {
 			t.Fatalf("message %v does not match code %d", msg, msg.Code()) // TODO eventually check against our own data
 		}
 		for _, body := range *bodies {
-			fmt.Printf("\nBODY: %+v\n", body)
+			t.Logf("\nBODY: %+v\n", body)
 		}
 	default:
 		t.Fatalf("error reading message: %v", msg)
