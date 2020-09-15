@@ -209,7 +209,7 @@ func (s *Suite) TestGetBlockBodies(t *utesting.T) {
 	if err != nil {
 		t.Fatalf("could not dial: %v", err)
 	}
-
+	
 	conn.handshake(t)
 	conn.statusExchange(t, s.chain)
 	// create block bodies request
@@ -233,7 +233,7 @@ func (s *Suite) TestGetBlockBodies(t *utesting.T) {
 	}
 }
 
-// TestBroadcast // TODO how to make sure this is compatible with the imported blockchain of the node
+// TestBroadcast // TODO how to make sure this is compatible with the imported blockchain of the node?
 func (s *Suite) TestBroadcast(t *utesting.T) {
 	// create conn to send block announcement
 	sendConn, err := s.dial()
@@ -268,13 +268,15 @@ func (s *Suite) TestBroadcast(t *utesting.T) {
 		assert.Equal(t, blockAnnouncement.TD, msg.TD,
 			"wrong TD in announcement")
 	case *NewBlockHashes:
-		t.Log("NEW BLOCK HASHES: ", "%+v\n", msg) // TODO impl some check here
+		hashes := *msg
+		assert.Equal(t, blockAnnouncement.Block.Hash(), hashes[0].Hash,
+			"wrong block hash in announcement")
 	default:
 		t.Fatal(msg)
 	}
-
+	// update test suite chain
 	s.chain.blocks = append(s.chain.blocks, s.fullChain.blocks[1000])
-
+	// wait for client to update its chain
 	if err := receiveConn.waitForBlock(s.chain.Head()); err != nil {
 		t.Fatal(err)
 	}
