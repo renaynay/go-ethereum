@@ -63,6 +63,11 @@ func (c *Chain) Shorten(height int) *Chain {
 	}
 }
 
+// Head returns the chain head.
+func (c *Chain) Head() *types.Block {
+	return c.blocks[c.Len()-1]
+}
+
 // loadChain takes the given chain.rlp file, and decodes and returns
 // the blocks from the file.
 func loadChain(chainfile string, genesis string) (*Chain, error) {

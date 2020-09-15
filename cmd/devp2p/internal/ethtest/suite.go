@@ -3,13 +3,15 @@ package ethtest
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/types"
+	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/internal/utesting"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/rlpx"
+	"github.com/stretchr/testify/assert"
 	"net"
 	"reflect"
 )
@@ -62,6 +64,10 @@ func (c *Conn) statusExchange(t *utesting.T, chain *Chain) Message {
 	switch msg := Read(c.Conn).(type) {
 	case *Status: // TODO you can impl more checks here (TD for ex.)
 		if msg.Head != chain.blocks[chain.Len()-1].Hash() {
+			fmt.Println("our chain length: ", chain.Len())      // TODO REMOVE
+			if msg.Head == chain.blocks[chain.Len()-2].Hash() { // TODO REMOVE
+				fmt.Println("SOMETHING IS WRONG?") // TODO REMOVE
+			}
 			t.Fatalf("wrong head in status: %v", msg.Head)
 		}
 		if msg.TD.Cmp(chain.TD(chain.Len())) != 0 {
@@ -91,6 +97,27 @@ func (c *Conn) statusExchange(t *utesting.T, chain *Chain) Message {
 	return message
 }
 
+// waitForBlock waits for confirmation from the client that it has
+// imported the given block.
+func (c *Conn) waitForBlock(block *types.Block) error {
+	for {
+		req := &GetBlockHeaders{Origin: hashOrNumber{Hash: block.Hash()}, Amount: 1}
+		if err := Write(c.Conn, req); err != nil {
+			return err
+		}
+
+		switch msg := Read(c.Conn).(type) {
+		case *BlockHeaders:
+			if len(*msg) > 0 {
+				return nil
+			}
+			time.Sleep(100*time.Millisecond)
+		default:
+			return fmt.Errorf("invalid message: %v", msg)
+		}
+	}
+}
+
 // NewSuite creates and returns a new eth-test suite that can
 // be used to test the given node against the given blockchain
 // data.
@@ -100,8 +127,8 @@ func NewSuite(dest *enode.Node, chainfile string, genesisfile string) *Suite {
 		panic(err)
 	}
 	return &Suite{
-		Dest: dest,
-		chain: chain.Shorten(1000),
+		Dest:      dest,
+		chain:     chain.Shorten(1000),
 		fullChain: chain,
 	}
 }
@@ -236,7 +263,7 @@ func (s *Suite) TestBroadcast(t *utesting.T) {
 	// sendConn sends the block announcement
 	blockAnnouncement := &NewBlock{
 		Block: s.fullChain.blocks[1000],
-		TD: s.fullChain.TD(1001),
+		TD:    s.fullChain.TD(1001),
 	}
 	if err := Write(sendConn.Conn, blockAnnouncement); err != nil {
 		t.Fatalf("could not write to connection: %v", err)
@@ -254,14 +281,10 @@ func (s *Suite) TestBroadcast(t *utesting.T) {
 		t.Fatal(msg)
 	}
 
-	newChain := s.chain.blocks
-	newChain = append(newChain, s.fullChain.blocks[1000])
+	s.chain.blocks = append(s.chain.blocks, s.fullChain.blocks[1000])
 
-	config := *s.chain.chainConfig
-
-	s.chain = &Chain{
-		blocks: newChain,
-		chainConfig: &config,
+	if err := receiveConn.waitForBlock(s.chain.Head()); err != nil {
+		t.Fatal(err)
 	}
 }
 
