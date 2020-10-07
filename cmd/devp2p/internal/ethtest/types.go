@@ -311,7 +311,7 @@ loop:
 				t.Fatalf("wrong TD in status: %v", msg.TD)
 			}
 			if !reflect.DeepEqual(msg.ForkID, chain.ForkID()) {
-				t.Fatalf("wrong fork ID in status: %v", msg.ForkID, "expected: %v", chain.ForkID())
+				t.Fatalf("wrong fork ID in status: %v, expected: %v", msg.ForkID, chain.ForkID())
 			}
 			message = msg
 			break loop
