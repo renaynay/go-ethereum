@@ -41,10 +41,7 @@ func newHandler(stack *node.Node, backend ethapi.Backend, cors, vhosts []string)
 	if err != nil {
 		return err
 	}
-	// try to set max query depth
-	schemaOpt := graphql.MaxDepth(5)
-	schemaOpt(s)
-	
+
 	h := &relay.Handler{Schema: s}
 	handler := node.NewHTTPHandlerStack(h, cors, vhosts)
 

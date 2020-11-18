@@ -1057,8 +1057,8 @@ func (s *SyncState) StartingBlock() hexutil.Uint64 {
 	return hexutil.Uint64(s.progress.StartingBlock)
 }
 
-func (s *SyncState) CurrentBlock() hexutil.Uint64 {
-	return hexutil.Uint64(s.progress.CurrentBlock)
+func (s *SyncState) CurrentBlock() int64 {
+	return int64(s.progress.CurrentBlock)
 }
 
 func (s *SyncState) HighestBlock() hexutil.Uint64 {
