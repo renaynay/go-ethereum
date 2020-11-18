@@ -415,13 +415,13 @@ func (b *Block) resolveReceipts(ctx context.Context) ([]*types.Receipt, error) {
 	return b.receipts, nil
 }
 
-func (b *Block) Number(ctx context.Context) (hexutil.Uint64, error) {
+func (b *Block) Number(ctx context.Context) (int64, error) {
 	header, err := b.resolveHeader(ctx)
 	if err != nil {
 		return 0, err
 	}
 
-	return hexutil.Uint64(header.Number.Uint64()), nil
+	return int64(header.Number.Uint64()), nil
 }
 
 func (b *Block) Hash(ctx context.Context) (common.Hash, error) {
@@ -1057,8 +1057,8 @@ func (s *SyncState) StartingBlock() hexutil.Uint64 {
 	return hexutil.Uint64(s.progress.StartingBlock)
 }
 
-func (s *SyncState) CurrentBlock() int64 {
-	return int64(s.progress.CurrentBlock)
+func (s *SyncState) CurrentBlock() hexutil.Uint64 {
+	return hexutil.Uint64(s.progress.CurrentBlock)
 }
 
 func (s *SyncState) HighestBlock() hexutil.Uint64 {
