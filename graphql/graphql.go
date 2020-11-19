@@ -415,13 +415,13 @@ func (b *Block) resolveReceipts(ctx context.Context) ([]*types.Receipt, error) {
 	return b.receipts, nil
 }
 
-func (b *Block) Number(ctx context.Context) (int64, error) {
+func (b *Block) Number(ctx context.Context) (*int32, error) {
 	header, err := b.resolveHeader(ctx)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-
-	return int64(header.Number.Uint64()), nil
+	number := int32(header.Number.Uint64())
+	return &number, nil
 }
 
 func (b *Block) Hash(ctx context.Context) (common.Hash, error) {

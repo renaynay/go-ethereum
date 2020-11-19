@@ -143,7 +143,7 @@ const schema string = `
     # Block is an Ethereum block.
     type Block {
         # Number is the number of this block, starting at 0 for the genesis block.
-        number: Long!
+        number: Int
         # Hash is the block hash of this block.
         hash: Bytes32!
         # Parent is the parent block of this block.
