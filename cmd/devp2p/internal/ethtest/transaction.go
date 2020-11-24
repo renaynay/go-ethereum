@@ -18,7 +18,6 @@ package ethtest
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -33,9 +32,7 @@ func sendSuccessfulTx(t *utesting.T, s *Suite, tx *types.Transaction) {
 	sendConn, recvConn := s.setupConnection(t), s.setupConnection(t)
 	fmt.Printf("tx %v %v %v\n", tx.Hash().String(), tx.GasPrice(), tx.Gas())
 	// kick of listening loop
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func(wg sync.WaitGroup) {
+	go func() {
 		for i := 0; i < 2; i ++ {
 			// Wait for the transaction announcement
 			switch msg := recvConn.ReadAndServe(s.chain, timeout).(type) {
@@ -54,7 +51,6 @@ func sendSuccessfulTx(t *utesting.T, s *Suite, tx *types.Transaction) {
 				}
 				if tx.Hash() == txHashes[len(txHashes)-1] {
 					// Tx announcement received
-					wg.Done()
 					return
 				}
 				// ignore other tx announcements
@@ -63,9 +59,7 @@ func sendSuccessfulTx(t *utesting.T, s *Suite, tx *types.Transaction) {
 			}
 		}
 		t.Fatalf("No tx announcement received, wanted %v", tx)
-		wg.Done()
-	}(wg)
-	wg.Wait()
+	}()
 	// Send the transaction
 	if err := sendConn.Write(Transactions([]*types.Transaction{tx})); err != nil {
 		t.Fatal(err)
