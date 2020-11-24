@@ -34,32 +34,35 @@ func sendSuccessfulTx(t *utesting.T, s *Suite, tx *types.Transaction) {
 	fmt.Printf("tx %v %v %v\n", tx.Hash().String(), tx.GasPrice(), tx.Gas())
 	// kick of listening loop
 	wg := sync.WaitGroup{}
-	wg.Add(2)
+	wg.Add(1)
 	go func(wg sync.WaitGroup) {
-		// Wait for the transaction announcement
-		switch msg := recvConn.ReadAndServe(s.chain, timeout).(type) {
-		case *Transactions:
-			recTxs := *msg
-			if len(recTxs) < 1 {
-				t.Fatalf("received transactions do not match send: %v", recTxs)
+		for i := 0; i < 2; i ++ {
+			// Wait for the transaction announcement
+			switch msg := recvConn.ReadAndServe(s.chain, timeout).(type) {
+			case *Transactions:
+				recTxs := *msg
+				if len(recTxs) < 1 {
+					t.Fatalf("received transactions do not match send: %v", recTxs)
+				}
+				if tx.Hash() != recTxs[len(recTxs)-1].Hash() {
+					t.Fatalf("received transactions do not match send: got %v want %v", recTxs, tx)
+				}
+			case *NewPooledTransactionHashes:
+				txHashes := *msg
+				if len(txHashes) < 1 {
+					t.Fatalf("received transactions do not match send: %v", txHashes)
+				}
+				if tx.Hash() == txHashes[len(txHashes)-1] {
+					// Tx announcement received
+					wg.Done()
+					return
+				}
+				// ignore other tx announcements
+			default:
+				t.Fatalf("unexpected message in sendSuccessfulTx: %s", pretty.Sdump(msg))
 			}
-			if tx.Hash() != recTxs[len(recTxs)-1].Hash() {
-				t.Fatalf("received transactions do not match send: got %v want %v", recTxs, tx)
-			}
-		case *NewPooledTransactionHashes:
-			txHashes := *msg
-			if len(txHashes) < 1 {
-				t.Fatalf("received transactions do not match send: %v", txHashes)
-			}
-			if tx.Hash() == txHashes[len(txHashes)-1] {
-				// Tx announcement received
-				return
-			}
-			// ignore other tx announcements
-		default:
-			t.Fatalf("unexpected message in sendSuccessfulTx: %s", pretty.Sdump(msg))
 		}
-		// if no message received, fatal out?
+		t.Fatalf("No tx announcement received, wanted %v", tx)
 		wg.Done()
 	}(wg)
 	wg.Wait()
