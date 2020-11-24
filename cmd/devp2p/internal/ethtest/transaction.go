@@ -18,6 +18,7 @@ package ethtest
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -31,13 +32,11 @@ var faucetKey, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c666
 func sendSuccessfulTx(t *utesting.T, s *Suite, tx *types.Transaction) {
 	sendConn, recvConn := s.setupConnection(t), s.setupConnection(t)
 	fmt.Printf("tx %v %v %v\n", tx.Hash().String(), tx.GasPrice(), tx.Gas())
-	// Send the transaction
-	if err := sendConn.Write(Transactions([]*types.Transaction{tx})); err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(100 * time.Millisecond)
-	// Wait for the transaction announcement
-	for i := 0; i < 2; i++ {
+	// kick of listening loop
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func(wg sync.WaitGroup) {
+		// Wait for the transaction announcement
 		switch msg := recvConn.ReadAndServe(s.chain, timeout).(type) {
 		case *Transactions:
 			recTxs := *msg
@@ -60,8 +59,15 @@ func sendSuccessfulTx(t *utesting.T, s *Suite, tx *types.Transaction) {
 		default:
 			t.Fatalf("unexpected message in sendSuccessfulTx: %s", pretty.Sdump(msg))
 		}
+		// if no message received, fatal out?
+		wg.Done()
+	}(wg)
+	wg.Wait()
+	// Send the transaction
+	if err := sendConn.Write(Transactions([]*types.Transaction{tx})); err != nil {
+		t.Fatal(err)
 	}
-	t.Fatalf("No tx announcement received, wanted %v", tx)
+	time.Sleep(100 * time.Millisecond)
 }
 
 func sendFailingTx(t *utesting.T, s *Suite, tx *types.Transaction) {
