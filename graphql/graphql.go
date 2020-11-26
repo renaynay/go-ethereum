@@ -801,7 +801,7 @@ type CallData struct {
 // CallResult encapsulates the result of an invocation of the `call` accessor.
 type CallResult struct {
 	data    hexutil.Bytes  // The return data from the call
-	gasUsed Long // The amount of gas used
+	gasUsed Long           // The amount of gas used
 	status  hexutil.Uint64 // The return status of the call - 0 for failure or 1 for success.
 }
 
@@ -810,7 +810,7 @@ func (c *CallResult) Data() hexutil.Bytes {
 }
 
 func (c *CallResult) GasUsed() Long {
-	return Long(c.gasUsed)
+	return c.gasUsed
 }
 
 func (c *CallResult) Status() hexutil.Uint64 {
