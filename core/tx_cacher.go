@@ -20,6 +20,7 @@ import (
 	"runtime"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // senderCacher is a concurrent transaction sender recoverer and cacher.
@@ -93,13 +94,17 @@ func (cacher *txSenderCacher) recover(signer types.Signer, txs []*types.Transact
 // back into the same data structures. There is no validation being done, nor
 // any reaction to invalid signatures. That is up to calling code later.
 func (cacher *txSenderCacher) recoverFromBlocks(signer types.Signer, blocks []*types.Block) {
+	log.Error("in recover from Blocks")
 	count := 0
 	for _, block := range blocks {
 		count += len(block.Transactions())
 	}
 	txs := make([]*types.Transaction, 0, count)
+	log.Error("made txs")
 	for _, block := range blocks {
 		txs = append(txs, block.Transactions()...)
 	}
+	log.Error("appended txs")
 	cacher.recover(signer, txs)
+	log.Error("recovered from cache")
 }
