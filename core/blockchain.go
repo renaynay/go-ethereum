@@ -1687,11 +1687,14 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		}
 	}
 	// Pre-checks passed, start the full block imports
+	log.Error("before adding 1 to wg in InsertChain")
 	bc.wg.Add(1)
 	bc.chainmu.Lock()
 	n, err := bc.insertChain(chain, true)
+	log.Error("insertChain finished")
 	bc.chainmu.Unlock()
 	bc.wg.Done()
+	log.Error("wg Done in InsertChain")
 
 	return n, err
 }
