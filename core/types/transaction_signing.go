@@ -20,6 +20,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -40,15 +41,21 @@ type sigCache struct {
 
 // MakeSigner returns a Signer based on the given chain config and block number.
 func MakeSigner(config *params.ChainConfig, blockNumber *big.Int) Signer {
+	log.Error("inside MakeSigner")
 	var signer Signer
 	switch {
 	case config.IsEIP155(blockNumber):
+		log.Error("config isEIP155")
 		signer = NewEIP155Signer(config.ChainID)
+		log.Error("created signer")
 	case config.IsHomestead(blockNumber):
+		log.Error("config IsHomestead")
 		signer = HomesteadSigner{}
 	default:
+		log.Error("config is Frontier")
 		signer = FrontierSigner{}
 	}
+	log.Error("returning signer")
 	return signer
 }
 
