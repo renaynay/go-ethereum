@@ -45,7 +45,7 @@ func MakeSigner(config *params.ChainConfig, blockNumber *big.Int) Signer {
 	var signer Signer
 	log.Error("init signer", "signer", signer)
 	log.Error("block number....", "num", blockNumber)
-	log.Error("config", config)
+	log.Error("config", "", config)
 	switch {
 	case config.IsEIP155(blockNumber):
 		log.Error("config isEIP155")
