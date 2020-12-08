@@ -19,6 +19,7 @@ package params
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -379,6 +380,7 @@ func (c *ChainConfig) String() string {
 
 // IsHomestead returns whether num is either equal to the homestead block or greater.
 func (c *ChainConfig) IsHomestead(num *big.Int) bool {
+	log.Error("checking if homestead")
 	return isForked(c.HomesteadBlock, num)
 }
 
@@ -394,6 +396,7 @@ func (c *ChainConfig) IsEIP150(num *big.Int) bool {
 
 // IsEIP155 returns whether num is either equal to the EIP155 fork block or greater.
 func (c *ChainConfig) IsEIP155(num *big.Int) bool {
+	log.Error("inside ISEIP155")
 	return isForked(c.EIP155Block, num)
 }
 
@@ -558,9 +561,13 @@ func isForkIncompatible(s1, s2, head *big.Int) bool {
 
 // isForked returns whether a fork scheduled at block s is active at the given head block.
 func isForked(s, head *big.Int) bool {
+	log.Error("inside isForked")
 	if s == nil || head == nil {
+		log.Error("isn't forked")
 		return false
 	}
+	log.Error("forked")
+	defer log.Error("returning from isForked")
 	return s.Cmp(head) <= 0
 }
 

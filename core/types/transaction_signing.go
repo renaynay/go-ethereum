@@ -43,6 +43,7 @@ type sigCache struct {
 func MakeSigner(config *params.ChainConfig, blockNumber *big.Int) Signer {
 	log.Error("inside MakeSigner")
 	var signer Signer
+	log.Error("init signer", "signer", signer)
 	switch {
 	case config.IsEIP155(blockNumber):
 		log.Error("config isEIP155")
@@ -115,9 +116,11 @@ type EIP155Signer struct {
 }
 
 func NewEIP155Signer(chainId *big.Int) EIP155Signer {
+	log.Error("inside NewEIP155Signer")
 	if chainId == nil {
 		chainId = new(big.Int)
 	}
+	defer log.Error("returning from NewEIP155Signer")
 	return EIP155Signer{
 		chainId:    chainId,
 		chainIdMul: new(big.Int).Mul(chainId, big.NewInt(2)),
