@@ -47,13 +47,13 @@ func MakeSigner(config *params.ChainConfig, blockNumber *big.Int) Signer {
 	log.Error("block number....", "num", blockNumber)
 	log.Error("config", "", config)
 	switch {
-	case config.IsEIP155(blockNumber):
-		log.Error("config isEIP155")
-		signer = NewEIP155Signer(config.ChainID)
-		log.Error("created signer")
-	case config.IsHomestead(blockNumber):
-		log.Error("config IsHomestead")
-		signer = HomesteadSigner{}
+	//case config.IsEIP155(blockNumber):
+	//	log.Error("config isEIP155")
+	//	signer = NewEIP155Signer(config.ChainID)
+	//	log.Error("created signer")
+	//case config.IsHomestead(blockNumber):
+	//	log.Error("config IsHomestead")
+	//	signer = HomesteadSigner{}
 	default:
 		log.Error("config is Frontier")
 		signer = FrontierSigner{}
