@@ -396,7 +396,8 @@ func (c *ChainConfig) IsEIP150(num *big.Int) bool {
 
 // IsEIP155 returns whether num is either equal to the EIP155 fork block or greater.
 func (c *ChainConfig) IsEIP155(num *big.Int) bool {
-	log.Error("inside ISEIP155")
+	log.Error("inside ISEIP155", "input", num)
+	log.Error("chain config eip155 block", "block", c.EIP155Block)
 	return isForked(c.EIP155Block, num)
 }
 
