@@ -1693,8 +1693,10 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	log.Error("locked chainmu")
 	n, err := bc.insertChain(chain, true)
 	log.Error("insertChain finished")
-	bc.chainmu.Unlock()
-	bc.wg.Done()
+	defer func() {
+		bc.chainmu.Unlock()
+		bc.wg.Done()
+	}()
 	log.Error("wg Done in InsertChain")
 
 	return n, err
