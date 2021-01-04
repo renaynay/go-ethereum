@@ -354,9 +354,7 @@ func (n *Node) startRPC() error {
 		if err := n.http.enableRPC(n.rpcAPIs, config); err != nil {
 			return err
 		}
-		if n.config.HTTPPath != "/" {
-			n.RegisterHandler("http-rpc", n.config.HTTPPath, n.http.httpHandler.Load().(*rpcHandler))
-		}
+		n.RegisterHandler("http-rpc", n.config.HTTPPath, n.http.httpHandler.Load().(*rpcHandler))
 	}
 
 	// Configure WebSocket.

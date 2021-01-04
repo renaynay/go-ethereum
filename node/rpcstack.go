@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/rs/cors"
+	"github.com/gorilla/mux"
 )
 
 // httpConfig is the JSON-RPC/HTTP configuration.
@@ -55,7 +56,7 @@ type rpcHandler struct {
 type httpServer struct {
 	log      log.Logger
 	timeouts rpc.HTTPTimeouts
-	mux      http.ServeMux // registered handlers go here
+	mux      *mux.Router // registered handlers go here
 
 	mu       sync.Mutex
 	server   *http.Server
@@ -79,7 +80,7 @@ type httpServer struct {
 }
 
 func newHTTPServer(log log.Logger, timeouts rpc.HTTPTimeouts, httpPath string) *httpServer {
-h := &httpServer{log: log, timeouts: timeouts, handlerNames: make(map[string]string)}
+	h := &httpServer{log: log, timeouts: timeouts, handlerNames: make(map[string]string), mux: mux.NewRouter()}
 	// set the path on which to mount the handler
 	if httpPath != "" {
 		h.httpPath = httpPath
@@ -177,21 +178,11 @@ func (h *httpServer) start() error {
 func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rpc := h.httpHandler.Load().(*rpcHandler)
 	if rpc != nil {
-		// if request on root path and http-rpc handler is mounted
-		// on root path, serve request.
-		if r.RequestURI == "/" && h.httpPath == "/" {
-			rpc.ServeHTTP(w, r)
-			return
-		}
-
-		// Requests to a path below root are handled by the mux,
+		// Requests to a path at or below root are handled by the mux,
 		// which has all the handlers registered via Node.RegisterHandler.
 		// These are made available when RPC is enabled.
-		muxHandler, pattern := h.mux.Handler(r)
-		if pattern != "" {
-			muxHandler.ServeHTTP(w, r)
-			return
-		}
+		h.mux.ServeHTTP(w, r)
+		return
 	}
 	// serve ws request if ws enabled
 	ws := h.wsHandler.Load().(*rpcHandler)
