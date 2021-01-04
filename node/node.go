@@ -136,8 +136,8 @@ func New(conf *Config) (*Node, error) {
 	}
 
 	// Configure RPC servers.
-	node.http = newHTTPServer(node.log, conf.HTTPTimeouts)
-	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts)
+	node.http = newHTTPServer(node.log, conf.HTTPTimeouts, node.config.HTTPPath)
+	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts, "") // TODO maybe ws path too?
 	node.ipc = newIPCServer(node.log, conf.IPCEndpoint())
 
 	return node, nil
@@ -158,8 +158,12 @@ func (n *Node) Start() error {
 		n.lock.Unlock()
 		return ErrNodeStopped
 	}
-	n.state = runningState
+	n.lock.Unlock()
+
 	err := n.startNetworking()
+
+	n.lock.Lock()
+	n.state = runningState
 	lifecycles := make([]Lifecycle, len(n.lifecycles))
 	copy(lifecycles, n.lifecycles)
 	n.lock.Unlock()
@@ -350,6 +354,9 @@ func (n *Node) startRPC() error {
 		if err := n.http.enableRPC(n.rpcAPIs, config); err != nil {
 			return err
 		}
+		if n.config.HTTPPath != "/" {
+			n.RegisterHandler("http-rpc", n.config.HTTPPath, n.http.httpHandler.Load().(*rpcHandler))
+		}
 	}
 
 	// Configure WebSocket.
@@ -454,6 +461,7 @@ func (n *Node) RegisterHandler(name, path string, handler http.Handler) {
 	if n.state != initializingState {
 		panic("can't register HTTP handler on running/stopped node")
 	}
+
 	n.http.mux.Handle(path, handler)
 	n.http.handlerNames[path] = name
 }

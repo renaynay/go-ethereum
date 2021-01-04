@@ -136,6 +136,10 @@ type Config struct {
 	// interface.
 	HTTPTimeouts rpc.HTTPTimeouts
 
+	// HTTPPath specifies a path on which http-rpc is to be served. The default is the
+	// root path.
+	HTTPPath string
+
 	// WSHost is the host interface on which to start the websocket RPC server. If
 	// this field is empty, no websocket API endpoint will be started.
 	WSHost string

@@ -64,6 +64,7 @@ type httpServer struct {
 	// HTTP RPC handler things.
 	httpConfig  httpConfig
 	httpHandler atomic.Value // *rpcHandler
+	httpPath	    string // path on which to mount http handler
 
 	// WebSocket handler things.
 	wsConfig  wsConfig
@@ -77,8 +78,12 @@ type httpServer struct {
 	handlerNames map[string]string
 }
 
-func newHTTPServer(log log.Logger, timeouts rpc.HTTPTimeouts) *httpServer {
-	h := &httpServer{log: log, timeouts: timeouts, handlerNames: make(map[string]string)}
+func newHTTPServer(log log.Logger, timeouts rpc.HTTPTimeouts, httpPath string) *httpServer {
+h := &httpServer{log: log, timeouts: timeouts, handlerNames: make(map[string]string)}
+	// set the path on which to mount the handler
+	if httpPath != "" {
+		h.httpPath = httpPath
+	}
 	h.httpHandler.Store((*rpcHandler)(nil))
 	h.wsHandler.Store((*rpcHandler)(nil))
 	return h
@@ -172,7 +177,12 @@ func (h *httpServer) start() error {
 func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rpc := h.httpHandler.Load().(*rpcHandler)
 	if rpc != nil {
-		// try and route in the mux first
+		// if request on root path and http-rpc handler is mounted
+		// on root path, serve request.
+		if r.RequestURI == "/" && h.httpPath == "/" {
+			rpc.ServeHTTP(w, r)
+			return
+		}
 
 		// Requests to a path below root are handled by the mux,
 		// which has all the handlers registered via Node.RegisterHandler.
@@ -183,16 +193,13 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	// fall back to JSON-RPC
+	// serve ws request if ws enabled
 	ws := h.wsHandler.Load().(*rpcHandler)
 	if ws != nil && isWebsocket(r) {
 		ws.ServeHTTP(w, r)
 		return
 	}
-	if rpc != nil {
-		rpc.ServeHTTP(w, r)
-		return
-	}
+
 	w.WriteHeader(404)
 }
 

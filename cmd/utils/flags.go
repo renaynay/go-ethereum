@@ -515,6 +515,11 @@ var (
 		Usage: "API's offered over the HTTP-RPC interface",
 		Value: "",
 	}
+	HTTPPathFlag = cli.StringFlag{
+		Name: "http.path",
+		Usage: "Path on which to mount the http server. Default value is root",
+		Value: "/",
+	}
 	GraphQLEnabledFlag = cli.BoolFlag{
 		Name:  "graphql",
 		Usage: "Enable GraphQL on the HTTP-RPC server. Note that GraphQL can only be started if an HTTP server is started as well.",
@@ -937,6 +942,12 @@ func setHTTP(ctx *cli.Context, cfg *node.Config) {
 	}
 	if ctx.GlobalIsSet(HTTPVirtualHostsFlag.Name) {
 		cfg.HTTPVirtualHosts = SplitAndTrim(ctx.GlobalString(HTTPVirtualHostsFlag.Name))
+	}
+
+	if ctx.GlobalIsSet(HTTPPathFlag.Name) {
+		cfg.HTTPPath = ctx.GlobalString(HTTPPathFlag.Name)
+	} else {
+		cfg.HTTPPath = HTTPPathFlag.Value
 	}
 }
 
