@@ -176,6 +176,13 @@ func (h *httpServer) start() error {
 }
 
 func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// serve ws request if ws enabled
+	ws := h.wsHandler.Load().(*rpcHandler)
+	if ws != nil && isWebsocket(r) {
+		ws.ServeHTTP(w, r)
+		return
+	}
+	// else, serve rpc
 	rpc := h.httpHandler.Load().(*rpcHandler)
 	if rpc != nil {
 		// Requests to a path at or below root are handled by the mux,
@@ -184,13 +191,6 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.mux.ServeHTTP(w, r)
 		return
 	}
-	// serve ws request if ws enabled
-	ws := h.wsHandler.Load().(*rpcHandler)
-	if ws != nil && isWebsocket(r) {
-		ws.ServeHTTP(w, r)
-		return
-	}
-
 	w.WriteHeader(404)
 }
 
