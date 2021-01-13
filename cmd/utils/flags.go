@@ -558,6 +558,11 @@ var (
 		Usage: "Origins from which to accept websockets requests",
 		Value: "",
 	}
+	WSPathFlag = cli.StringFlag{
+		Name: "ws.path",
+		Usage: "Path on which to mount the ws server. Default value is root",
+		Value: "/",
+	}
 	ExecFlag = cli.StringFlag{
 		Name:  "exec",
 		Usage: "Execute JavaScript statement",
@@ -997,6 +1002,12 @@ func setWS(ctx *cli.Context, cfg *node.Config) {
 	}
 	if ctx.GlobalIsSet(WSApiFlag.Name) {
 		cfg.WSModules = SplitAndTrim(ctx.GlobalString(WSApiFlag.Name))
+	}
+
+	if ctx.GlobalIsSet(WSPathFlag.Name) {
+		cfg.WSPath = ctx.GlobalString(WSPathFlag.Name)
+	} else {
+		cfg.WSPath = WSPathFlag.Value
 	}
 }
 

@@ -39,12 +39,14 @@ type httpConfig struct {
 	Modules            []string
 	CorsAllowedOrigins []string
 	Vhosts             []string
+	path			string // path on which to mount http handler
 }
 
 // wsConfig is the JSON-RPC/Websocket configuration
 type wsConfig struct {
 	Origins []string
 	Modules []string
+	path string // path on which to mount ws handler
 }
 
 type rpcHandler struct {
@@ -64,7 +66,6 @@ type httpServer struct {
 	// HTTP RPC handler things.
 	httpConfig  httpConfig
 	httpHandler atomic.Value // *rpcHandler
-	httpPath	    string // path on which to mount http handler
 
 	// WebSocket handler things.
 	wsConfig  wsConfig
@@ -78,12 +79,9 @@ type httpServer struct {
 	handlerNames map[string]string
 }
 
-func newHTTPServer(log log.Logger, timeouts rpc.HTTPTimeouts, httpPath string) *httpServer {
-h := &httpServer{log: log, timeouts: timeouts, handlerNames: make(map[string]string)}
-	// set the path on which to mount the handler
-	if httpPath != "" {
-		h.httpPath = httpPath
-	}
+func newHTTPServer(log log.Logger, timeouts rpc.HTTPTimeouts) *httpServer {
+	h := &httpServer{log: log, timeouts: timeouts, handlerNames: make(map[string]string)}
+
 	h.httpHandler.Store((*rpcHandler)(nil))
 	h.wsHandler.Store((*rpcHandler)(nil))
 	return h
@@ -175,11 +173,20 @@ func (h *httpServer) start() error {
 }
 
 func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// check if ws request if ws enabled
+	ws := h.wsHandler.Load().(*rpcHandler)
+	if ws != nil && isWebsocket(r) {
+		if r.RequestURI == h.wsConfig.path {
+			ws.ServeHTTP(w, r)
+			return
+		}
+	}
+
 	rpc := h.httpHandler.Load().(*rpcHandler)
 	if rpc != nil {
 		// if request on root path and http-rpc handler is mounted
 		// on root path, serve request.
-		if r.RequestURI == "/" && h.httpPath == "/" {
+		if r.RequestURI == "/" && h.httpConfig.path == "/" {
 			rpc.ServeHTTP(w, r)
 			return
 		}
@@ -193,13 +200,6 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	// serve ws request if ws enabled
-	ws := h.wsHandler.Load().(*rpcHandler)
-	if ws != nil && isWebsocket(r) {
-		ws.ServeHTTP(w, r)
-		return
-	}
-
 	w.WriteHeader(404)
 }
 

@@ -89,15 +89,15 @@ func TestIsWebsocket(t *testing.T) {
 	assert.True(t, isWebsocket(r))
 }
 
-// TestRPCCall_NotOnRootPath tests whether an RPC call that is not on
+// TestRPCCall_BelowRootPath tests whether an RPC call that is not on
 // the root path will be successfully completed.
-func TestRPCCall_NotOnRootPath(t *testing.T) {
+func TestRPCCall_BelowRootPath(t *testing.T) {
 	paths := []string{"/", "/testing/test/123", "/testing", ""}
 
-	srv := createAndStartServer(t, httpConfig{}, true, wsConfig{})
-	body := bytes.NewReader([]byte(`{"jsonrpc":"2.0","id":1,method":"rpc_modules"}`))
-
 	for _, path := range paths {
+		srv := createAndStartServer(t, httpConfig{path: path}, true, wsConfig{})
+		body := bytes.NewReader([]byte(`{"jsonrpc":"2.0","id":1,method":"rpc_modules"}`))
+
 		req := createReq(srv, body, path)
 		req.Header.Set("content-type", "application/json")
 
@@ -109,9 +109,23 @@ func TestRPCCall_NotOnRootPath(t *testing.T) {
 func createAndStartServer(t *testing.T, conf httpConfig, ws bool, wsConf wsConfig) *httpServer {
 	t.Helper()
 
+	// set http path
+	if conf.path == "" {
+		conf.path = "/"
+	}
+	if wsConf.path == "" {
+		wsConf.path = "/"
+	}
+
 	srv := newHTTPServer(testlog.Logger(t, log.LvlDebug), rpc.DefaultHTTPTimeouts)
 
 	assert.NoError(t, srv.enableRPC(nil, conf))
+
+	if srv.httpConfig.path != "/" {
+		srv.mux.Handle(srv.httpConfig.path, srv.httpHandler.Load().(*rpcHandler))
+		srv.handlerNames[srv.httpConfig.path] = "http-rpc"
+	}
+
 	if ws {
 		assert.NoError(t, srv.enableWS(nil, wsConf))
 	}

@@ -79,14 +79,9 @@ func TestGraphQLHTTPOnSamePort_GQLRequest_Unsuccessful(t *testing.T) {
 		t.Error("could not issue new http request ", err)
 	}
 	gqlReq.Header.Set("Content-Type", "application/json")
-	// read from response
+
 	resp := doHTTPRequest(t, gqlReq)
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("could not read from response body: %v", err)
-	}
-	// make sure the request is not handled successfully
-	assert.True(t, strings.Contains(string(bodyBytes), "invalid request"))
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 }
 
 func createNode(t *testing.T, gqlEnabled bool) *node.Node {

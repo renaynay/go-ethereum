@@ -136,8 +136,8 @@ func New(conf *Config) (*Node, error) {
 	}
 
 	// Configure RPC servers.
-	node.http = newHTTPServer(node.log, conf.HTTPTimeouts, node.config.HTTPPath)
-	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts, "") // TODO maybe ws path too?
+	node.http = newHTTPServer(node.log, conf.HTTPTimeouts)
+	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts)
 	node.ipc = newIPCServer(node.log, conf.IPCEndpoint())
 
 	return node, nil
@@ -343,10 +343,15 @@ func (n *Node) startRPC() error {
 
 	// Configure HTTP.
 	if n.config.HTTPHost != "" {
+		// set the path on which to mount the handler
+		if n.config.HTTPPath == "" {
+			n.config.HTTPPath = "/"
+		}
 		config := httpConfig{
 			CorsAllowedOrigins: n.config.HTTPCors,
 			Vhosts:             n.config.HTTPVirtualHosts,
 			Modules:            n.config.HTTPModules,
+			path: 				n.config.HTTPPath,
 		}
 		if err := n.http.setListenAddr(n.config.HTTPHost, n.config.HTTPPort); err != nil {
 			return err
@@ -362,9 +367,14 @@ func (n *Node) startRPC() error {
 	// Configure WebSocket.
 	if n.config.WSHost != "" {
 		server := n.wsServerForPort(n.config.WSPort)
+		// set the path on which to mount the handler
+		if n.config.WSPath == "" {
+			n.config.WSPath = "/"
+		}
 		config := wsConfig{
 			Modules: n.config.WSModules,
 			Origins: n.config.WSOrigins,
+			path: 	 n.config.WSPath,
 		}
 		if err := server.setListenAddr(n.config.WSHost, n.config.WSPort); err != nil {
 			return err
