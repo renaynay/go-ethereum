@@ -351,7 +351,7 @@ func (n *Node) startRPC() error {
 			CorsAllowedOrigins: n.config.HTTPCors,
 			Vhosts:             n.config.HTTPVirtualHosts,
 			Modules:            n.config.HTTPModules,
-			path: 				n.config.HTTPPath,
+			path:               n.config.HTTPPath,
 		}
 		if err := n.http.setListenAddr(n.config.HTTPHost, n.config.HTTPPort); err != nil {
 			return err
@@ -374,7 +374,7 @@ func (n *Node) startRPC() error {
 		config := wsConfig{
 			Modules: n.config.WSModules,
 			Origins: n.config.WSOrigins,
-			path: 	 n.config.WSPath,
+			path:    n.config.WSPath,
 		}
 		if err := server.setListenAddr(n.config.WSHost, n.config.WSPort); err != nil {
 			return err

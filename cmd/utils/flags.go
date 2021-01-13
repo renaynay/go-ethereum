@@ -516,7 +516,7 @@ var (
 		Value: "",
 	}
 	HTTPPathFlag = cli.StringFlag{
-		Name: "http.path",
+		Name:  "http.path",
 		Usage: "Path on which to mount the http server. Default value is root",
 		Value: "/",
 	}
@@ -559,7 +559,7 @@ var (
 		Value: "",
 	}
 	WSPathFlag = cli.StringFlag{
-		Name: "ws.path",
+		Name:  "ws.path",
 		Usage: "Path on which to mount the ws server. Default value is root",
 		Value: "/",
 	}

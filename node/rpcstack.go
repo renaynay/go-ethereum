@@ -39,14 +39,14 @@ type httpConfig struct {
 	Modules            []string
 	CorsAllowedOrigins []string
 	Vhosts             []string
-	path			string // path on which to mount http handler
+	path               string // path on which to mount http handler
 }
 
 // wsConfig is the JSON-RPC/Websocket configuration
 type wsConfig struct {
 	Origins []string
 	Modules []string
-	path string // path on which to mount ws handler
+	path    string // path on which to mount ws handler
 }
 
 type rpcHandler struct {

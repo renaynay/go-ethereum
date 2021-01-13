@@ -184,7 +184,7 @@ func (api *privateAdminAPI) StartRPC(host *string, port *int, cors *string, apis
 		CorsAllowedOrigins: api.node.config.HTTPCors,
 		Vhosts:             api.node.config.HTTPVirtualHosts,
 		Modules:            api.node.config.HTTPModules,
-		path:				"/", // TODO make this custom too later?
+		path:               "/", // TODO make this custom too later?
 	}
 	if cors != nil {
 		config.CorsAllowedOrigins = nil
@@ -244,7 +244,7 @@ func (api *privateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 	config := wsConfig{
 		Modules: api.node.config.WSModules,
 		Origins: api.node.config.WSOrigins,
-		path: "/",
+		path:    "/",
 		// ExposeAll: api.node.config.WSExposeAll,
 	}
 	if apis != nil {
