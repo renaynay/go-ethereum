@@ -186,7 +186,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if rpc != nil {
 		// if request on root path and http-rpc handler is mounted
 		// on root path, serve request.
-		if r.RequestURI == "/" && h.httpConfig.path == "/" {
+		if r.RequestURI == h.httpConfig.path {
 			rpc.ServeHTTP(w, r)
 			return
 		}

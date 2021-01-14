@@ -163,7 +163,7 @@ func (api *privateAdminAPI) PeerEvents(ctx context.Context) (*rpc.Subscription, 
 }
 
 // StartRPC starts the HTTP RPC API server.
-func (api *privateAdminAPI) StartRPC(host *string, port *int, cors *string, apis *string, vhosts *string) (bool, error) {
+func (api *privateAdminAPI) StartRPC(host *string, port *int, path *string, cors *string, apis *string, vhosts *string) (bool, error) {
 	api.node.lock.Lock()
 	defer api.node.lock.Unlock()
 
@@ -179,12 +179,22 @@ func (api *privateAdminAPI) StartRPC(host *string, port *int, cors *string, apis
 		port = &api.node.config.HTTPPort
 	}
 
+	// Check if path set on which to mount http handler
+	if path == nil {
+		p := "/"
+		if api.node.config.HTTPPath != "" {
+			p = api.node.config.HTTPPath
+		}
+		path = &p
+	}
+	fmt.Println("path now ", *path)
+
 	// Determine config.
 	config := httpConfig{
 		CorsAllowedOrigins: api.node.config.HTTPCors,
 		Vhosts:             api.node.config.HTTPVirtualHosts,
 		Modules:            api.node.config.HTTPModules,
-		path:               "/", // TODO make this custom too later?
+		path:               *path,
 	}
 	if cors != nil {
 		config.CorsAllowedOrigins = nil
@@ -224,7 +234,7 @@ func (api *privateAdminAPI) StopRPC() (bool, error) {
 }
 
 // StartWS starts the websocket RPC API server.
-func (api *privateAdminAPI) StartWS(host *string, port *int, allowedOrigins *string, apis *string) (bool, error) {
+func (api *privateAdminAPI) StartWS(host *string, port *int, path *string, allowedOrigins *string, apis *string) (bool, error) {
 	api.node.lock.Lock()
 	defer api.node.lock.Unlock()
 
@@ -240,11 +250,20 @@ func (api *privateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 		port = &api.node.config.WSPort
 	}
 
+	// Check if path set on which to mount ws handler
+	if path == nil {
+		p := "/"
+		if api.node.config.WSPath != "" {
+			p = api.node.config.WSPath
+		}
+		path = &p
+	}
+
 	// Determine config.
 	config := wsConfig{
 		Modules: api.node.config.WSModules,
 		Origins: api.node.config.WSOrigins,
-		path:    "/",
+		path:    *path,
 		// ExposeAll: api.node.config.WSExposeAll,
 	}
 	if apis != nil {
