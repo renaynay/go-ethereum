@@ -18,6 +18,7 @@ package node
 
 import (
 	"bytes"
+	"github.com/ethereum/go-ethereum/p2p"
 	"io"
 	"net"
 	"net/http"
@@ -291,6 +292,78 @@ func TestStartRPC(t *testing.T) {
 				t.Errorf("WS RPC %savailable, want it %savailable", not(wsAvailable), not(test.wantWS))
 			}
 		})
+	}
+}
+
+// TestRPC_OnPath tests whether RPC will be handled on a custom path.
+func TestRPC_OnPath(t *testing.T) {
+	// Create Node.
+	stack, err := New(&Config{
+		NoUSB: true,
+		P2P: p2p.Config{
+			NoDiscovery: true,
+		},
+	})
+	if err != nil {
+		t.Fatal("can't create node:", err)
+	}
+	defer stack.Close()
+
+	if err := stack.Start(); err != nil {
+		t.Fatal("can't start node:", err)
+	}
+
+	api := &privateAdminAPI{stack}
+
+	paths := []string{"/test", "/testtesttest", "/t", "/"}
+
+	for _, path := range paths {
+		_, err := api.StartRPC(sp("127.0.0.1"), ip(0), sp(path), nil, nil, nil)
+		assert.NoError(t, err)
+
+		baseURL := stack.HTTPEndpoint()
+		assert.True(t, checkReachable(baseURL + path))
+		assert.True(t, checkRPC(baseURL + path))
+		assert.False(t, checkRPC(baseURL + "/fail"))
+
+		_, err = api.StopRPC()
+		assert.NoError(t, err)
+	}
+}
+
+// TestWS_OnPath tests whether RPC will be handled on a custom path.
+func TestWS_OnPath(t *testing.T) {
+	// Create Node.
+	stack, err := New(&Config{
+		NoUSB: true,
+		P2P: p2p.Config{
+			NoDiscovery: true,
+		},
+	})
+	if err != nil {
+		t.Fatal("can't create node:", err)
+	}
+	defer stack.Close()
+
+	if err := stack.Start(); err != nil {
+		t.Fatal("can't start node:", err)
+	}
+
+	api := &privateAdminAPI{stack}
+
+	paths := []string{"/test", "/testtesttest", "/t", "/"}
+
+	for _, path := range paths {
+		_, err := api.StartWS(sp("127.0.0.1"), ip(0), sp(path), nil, nil)
+		assert.NoError(t, err)
+
+		baseURL := stack.WSEndpoint()
+		assert.True(t, checkReachable(baseURL + path))
+		assert.True(t, checkRPC(baseURL + path))
+		assert.False(t, checkRPC(baseURL + "/fail"))
+
+		_, err = api.StopWS()
+		assert.NoError(t, err)
 	}
 }
 

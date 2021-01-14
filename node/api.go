@@ -187,7 +187,6 @@ func (api *privateAdminAPI) StartRPC(host *string, port *int, path *string, cors
 		}
 		path = &p
 	}
-	fmt.Println("path now ", *path)
 
 	// Determine config.
 	config := httpConfig{

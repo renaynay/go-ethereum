@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"strconv"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/internal/testlog"
@@ -89,20 +90,87 @@ func TestIsWebsocket(t *testing.T) {
 	assert.True(t, isWebsocket(r))
 }
 
-// TestRPCCall_BelowRootPath tests whether an RPC call that is not on
-// the root path will be successfully completed.
-func TestRPCCall_BelowRootPath(t *testing.T) {
-	paths := []string{"/", "/testing/test/123", "/testing", ""}
+// TestRPCCall_CustomPath tests whether an RPC call on a custom path
+// will be successfully completed.
+func TestRPCCall_CustomPath(t *testing.T) {
+	tests := []struct{
+		httpConf httpConfig
+		wsConf wsConfig
+		wsEnabled bool
+	}{
+		{
+			httpConf: httpConfig{
+				path:               "/",
+			},
+			wsConf:wsConfig{
+				path:    "/test",
+			},
+			wsEnabled: false,
+		},
+		{
+			httpConf: httpConfig{
+				path:               "/test",
+			},
+			wsConf:wsConfig{
+				path:    "/test",
+			},
+			wsEnabled: false,
+		},
+		{
+			httpConf: httpConfig{
+				path:               "/test",
+			},
+			wsConf:wsConfig{
+				path:    "/test",
+			},
+			wsEnabled: true,
+		},
+		{
+			httpConf: httpConfig{
+				path:               "/testing/test/123",
+			},
+			wsConf:wsConfig{
+				path:    "/test",
+			},
+			wsEnabled: true,
+		},
+		{
+			httpConf: httpConfig{
+				path:               "/",
+			},
+			wsConf:wsConfig{
+				path:    "/test",
+			},
+			wsEnabled: true,
+		},
+	}
 
-	for _, path := range paths {
-		srv := createAndStartServer(t, httpConfig{path: path}, true, wsConfig{})
-		body := bytes.NewReader([]byte(`{"jsonrpc":"2.0","id":1,method":"rpc_modules"}`))
+	for i, test := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			srv := createAndStartServer(t, test.httpConf, test.wsEnabled, test.wsConf)
+			body := bytes.NewReader([]byte(`{"jsonrpc":"2.0","id":1,method":"rpc_modules"}`))
 
-		req := createReq(srv, body, path)
-		req.Header.Set("content-type", "application/json")
+			req := createReq(srv, body, test.httpConf.path)
+			req.Header.Set("content-type", "application/json")
 
-		resp := doReq(t, req)
-		assert.True(t, resp.StatusCode != http.StatusNotFound)
+			resp := doReq(t, req)
+			assert.True(t, resp.StatusCode != http.StatusNotFound)
+
+			req = createReq(srv, body, "/fail")
+			req.Header.Set("content-type", "application/json")
+
+			resp = doReq(t, req)
+			assert.True(t, resp.StatusCode == http.StatusNotFound)
+
+			if test.wsEnabled {
+				dialer := websocket.DefaultDialer
+				_, _, err := dialer.Dial("ws://"+srv.listenAddr()+test.wsConf.path, http.Header{
+					"Content-type":          []string{"application/json"},
+					"Sec-WebSocket-Version": []string{"13"},
+				})
+				assert.NoError(t, err)
+			}
+		})
 	}
 }
 
