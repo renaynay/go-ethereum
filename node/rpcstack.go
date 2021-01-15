@@ -176,7 +176,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// check if ws request if ws enabled
 	ws := h.wsHandler.Load().(*rpcHandler)
 	if ws != nil && isWebsocket(r) {
-		if r.RequestURI == h.wsConfig.path {
+		if checkPath(r, h.wsConfig.path) {
 			ws.ServeHTTP(w, r)
 			return
 		}
@@ -184,9 +184,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	rpc := h.httpHandler.Load().(*rpcHandler)
 	if rpc != nil {
-		// if request on root path and http-rpc handler is mounted
-		// on root path, serve request.
-		if r.RequestURI == h.httpConfig.path {
+		if checkPath(r, h.httpConfig.path) {
 			rpc.ServeHTTP(w, r)
 			return
 		}
@@ -201,6 +199,11 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(404)
+}
+
+// checkPath checks whether a request path matches a given path or path prefix.
+func checkPath(r *http.Request, path string) bool {
+	return len(r.RequestURI) >= len(path) && r.RequestURI[:len(path)] == path
 }
 
 // stop shuts down the HTTP server.
