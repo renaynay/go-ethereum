@@ -203,6 +203,14 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // checkPath checks whether a request path matches a given path or path prefix.
 func checkPath(r *http.Request, path string) bool {
+	// if the path is default root and the request URI is below root,
+	// return false and fall through to mux
+	if path == "/" {
+		if r.RequestURI == "/" {
+			return true
+		}
+		return false
+	}
 	return len(r.RequestURI) >= len(path) && r.RequestURI[:len(path)] == path
 }
 
