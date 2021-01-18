@@ -33,6 +33,7 @@ import (
 // This test uses the admin_startRPC and admin_startWS APIs,
 // checking whether the HTTP server is started correctly.
 func TestStartRPC(t *testing.T) {
+	
 	type test struct {
 		name string
 		cfg  Config
