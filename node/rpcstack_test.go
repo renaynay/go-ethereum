@@ -93,53 +93,53 @@ func TestIsWebsocket(t *testing.T) {
 // TestRPCCall_CustomPath tests whether an RPC call on a custom path
 // will be successfully completed.
 func TestRPCCall_CustomPath(t *testing.T) {
-	tests := []struct{
-		httpConf httpConfig
-		wsConf wsConfig
+	tests := []struct {
+		httpConf  httpConfig
+		wsConf    wsConfig
 		wsEnabled bool
 	}{
 		{
 			httpConf: httpConfig{
-				path:               "/",
+				path: "/",
 			},
-			wsConf:wsConfig{
-				path:    "/test",
-			},
-			wsEnabled: false,
-		},
-		{
-			httpConf: httpConfig{
-				path:               "/test",
-			},
-			wsConf:wsConfig{
-				path:    "/test",
+			wsConf: wsConfig{
+				path: "/test",
 			},
 			wsEnabled: false,
 		},
 		{
 			httpConf: httpConfig{
-				path:               "/test",
+				path: "/test",
 			},
-			wsConf:wsConfig{
-				path:    "/test",
+			wsConf: wsConfig{
+				path: "/test",
+			},
+			wsEnabled: false,
+		},
+		{
+			httpConf: httpConfig{
+				path: "/test",
+			},
+			wsConf: wsConfig{
+				path: "/test",
 			},
 			wsEnabled: true,
 		},
 		{
 			httpConf: httpConfig{
-				path:               "/testing/test/123",
+				path: "/testing/test/123",
 			},
-			wsConf:wsConfig{
-				path:    "/test",
+			wsConf: wsConfig{
+				path: "/test",
 			},
 			wsEnabled: true,
 		},
 		{
 			httpConf: httpConfig{
-				path:               "/",
+				path: "/",
 			},
-			wsConf:wsConfig{
-				path:    "/test",
+			wsConf: wsConfig{
+				path: "/test",
 			},
 			wsEnabled: true,
 		},

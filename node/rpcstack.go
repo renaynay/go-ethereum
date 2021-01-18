@@ -206,10 +206,7 @@ func checkPath(r *http.Request, path string) bool {
 	// if the path is default root and the request URI is below root,
 	// return false and fall through to mux
 	if path == "/" {
-		if r.RequestURI == "/" {
-			return true
-		}
-		return false
+		return r.RequestURI == "/"
 	}
 	return len(r.RequestURI) >= len(path) && r.RequestURI[:len(path)] == path
 }

@@ -18,7 +18,6 @@ package node
 
 import (
 	"bytes"
-	"github.com/ethereum/go-ethereum/p2p"
 	"io"
 	"net"
 	"net/http"
@@ -26,6 +25,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/assert"
 )
@@ -322,9 +322,9 @@ func TestRPC_OnPath(t *testing.T) {
 		assert.NoError(t, err)
 
 		baseURL := stack.HTTPEndpoint()
-		assert.True(t, checkReachable(baseURL + path))
-		assert.True(t, checkRPC(baseURL + path))
-		assert.False(t, checkRPC(baseURL + "/fail"))
+		assert.True(t, checkReachable(baseURL+path))
+		assert.True(t, checkRPC(baseURL+path))
+		assert.False(t, checkRPC(baseURL+"/fail"))
 
 		_, err = api.StopRPC()
 		assert.NoError(t, err)
@@ -358,9 +358,9 @@ func TestWS_OnPath(t *testing.T) {
 		assert.NoError(t, err)
 
 		baseURL := stack.WSEndpoint()
-		assert.True(t, checkReachable(baseURL + path))
-		assert.True(t, checkRPC(baseURL + path))
-		assert.False(t, checkRPC(baseURL + "/fail"))
+		assert.True(t, checkReachable(baseURL+path))
+		assert.True(t, checkRPC(baseURL+path))
+		assert.False(t, checkRPC(baseURL+"/fail"))
 
 		_, err = api.StopWS()
 		assert.NoError(t, err)
