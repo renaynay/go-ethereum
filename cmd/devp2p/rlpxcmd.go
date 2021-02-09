@@ -35,6 +35,7 @@ var (
 		Subcommands: []cli.Command{
 			rlpxPingCommand,
 			rlpxEthTestCommand,
+			eth66TestCommand,
 		},
 	}
 	rlpxPingCommand = cli.Command{

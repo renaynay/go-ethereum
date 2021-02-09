@@ -102,7 +102,7 @@ func (s *Suite) TestStatus_65(t *utesting.T) {
 }
 
 // TestMaliciousStatus sends a status package with a large total difficulty.
-func (s *Suite) TestMaliciousStatus(t *utesting.T) {
+func (s *Suite) TestMaliciousStatus_65(t *utesting.T) {
 	conn, err := s.dial()
 	if err != nil {
 		t.Fatalf("could not dial: %v", err)

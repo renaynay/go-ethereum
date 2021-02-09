@@ -27,14 +27,14 @@ import (
 func (s *Suite) Eth66Tests() []utesting.Test {
 	return []utesting.Test{
 		{Name: "Status_66", Fn: s.TestStatus_66},
-		{Name: "GetBlockHeaders_66", Fn: s.TestGetBlockHeaders_66},
-		{Name: "Broadcast_66", Fn: s.TestBroadcast_66},
-		{Name: "GetBlockBodies_66", Fn: s.TestGetBlockBodies_66},
-		{Name: "TestLargeAnnounce_66", Fn: s.TestLargeAnnounce_66},
-		{Name: "TestMaliciousHandshake_66", Fn: s.TestMaliciousHandshake_66},
-		{Name: "TestMaliciousStatus_66", Fn: s.TestMaliciousStatus_66},
-		{Name: "TestTransactions_65", Fn: s.TestTransaction_65},
-		{Name: "TestMaliciousTransactions_65", Fn: s.TestMaliciousTx_65},
+		//{Name: "GetBlockHeaders_66", Fn: s.TestGetBlockHeaders_66},
+		//{Name: "Broadcast_66", Fn: s.TestBroadcast_66},
+		//{Name: "GetBlockBodies_66", Fn: s.TestGetBlockBodies_66},
+		//{Name: "TestLargeAnnounce_66", Fn: s.TestLargeAnnounce_66},
+		//{Name: "TestMaliciousHandshake_66", Fn: s.TestMaliciousHandshake_66},
+		//{Name: "TestMaliciousStatus_66", Fn: s.TestMaliciousStatus_66},
+		//{Name: "TestTransactions_65", Fn: s.TestTransaction_65},
+		//{Name: "TestMaliciousTransactions_65", Fn: s.TestMaliciousTx_65},
 	}
 }
 
