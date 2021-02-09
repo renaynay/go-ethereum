@@ -52,6 +52,16 @@ var (
 			testTAPFlag,
 		},
 	}
+	eth66TestCommand = cli.Command{
+		Name:      "eth66-test",
+		Usage:     "Runs eth66 protocol tests against a node",
+		ArgsUsage: "<node> <chain.rlp> <genesis.json>",
+		Action:    eth66Test,
+		Flags: []cli.Flag{
+			testPatternFlag,
+			testTAPFlag,
+		},
+	}
 )
 
 func rlpxPing(ctx *cli.Context) error {
@@ -95,5 +105,13 @@ func rlpxEthTest(ctx *cli.Context) error {
 		exit("missing path to chain.rlp as command-line argument")
 	}
 	suite := ethtest.NewSuite(getNodeArg(ctx), ctx.Args()[1], ctx.Args()[2])
-	return runTests(ctx, suite.AllTests())
+	return runTests(ctx, suite.EthTests()) // TODO should this run all tests or just < eth66 tests?
+}
+
+func eth66Test(ctx *cli.Context) error {
+	if ctx.NArg() < 3 {
+		exit("missing path to chain.rlp as command-line argument")
+	}
+	suite := ethtest.NewSuite(getNodeArg(ctx), ctx.Args()[1], ctx.Args()[2])
+	return runTests(ctx, suite.Eth66Tests())
 }

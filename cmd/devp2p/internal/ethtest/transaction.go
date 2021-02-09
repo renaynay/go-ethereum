@@ -28,15 +28,15 @@ import (
 //var faucetAddr = common.HexToAddress("0x71562b71999873DB5b286dF957af199Ec94617F7")
 var faucetKey, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 
-func sendSuccessfulTx(t *utesting.T, s *Suite, tx *types.Transaction) {
-	sendConn := s.setupConnection(t)
+func sendSuccessfulTx(t *utesting.T, s *Suite, tx *types.Transaction, status *Status) {
+	sendConn := s.setupConnection(t, status)
 	t.Logf("sending tx: %v %v %v\n", tx.Hash().String(), tx.GasPrice(), tx.Gas())
 	// Send the transaction
 	if err := sendConn.Write(Transactions([]*types.Transaction{tx})); err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(100 * time.Millisecond)
-	recvConn := s.setupConnection(t)
+	recvConn := s.setupConnection(t, nil)
 	// Wait for the transaction announcement
 	switch msg := recvConn.ReadAndServe(s.chain, timeout).(type) {
 	case *Transactions:
@@ -60,8 +60,8 @@ func sendSuccessfulTx(t *utesting.T, s *Suite, tx *types.Transaction) {
 	}
 }
 
-func sendFailingTx(t *utesting.T, s *Suite, tx *types.Transaction) {
-	sendConn, recvConn := s.setupConnection(t), s.setupConnection(t)
+func sendFailingTx(t *utesting.T, s *Suite, tx *types.Transaction, status *Status) {
+	sendConn, recvConn := s.setupConnection(t, status), s.setupConnection(t, status)
 	// Wait for a transaction announcement
 	switch msg := recvConn.ReadAndServe(s.chain, timeout).(type) {
 	case *NewPooledTransactionHashes:
