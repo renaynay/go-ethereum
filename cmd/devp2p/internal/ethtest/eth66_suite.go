@@ -47,7 +47,7 @@ func (s *Suite) TestStatus_66(t *utesting.T) {
 		t.Fatalf("could not dial: %v", err)
 	}
 	// get protoHandshake
-	conn.handshake(t)
+	conn.handshake(t, s.caps)
 	// get status
 	switch msg := conn.statusExchange(t, s.chain, s.eth66StatusMessage()).(type) {
 	case *Status:
@@ -95,7 +95,7 @@ func (s *Suite) TestMaliciousStatus_66(t *utesting.T) {
 		t.Fatalf("could not dial: %v", err)
 	}
 	// get protoHandshake
-	conn.handshake(t)
+	conn.handshake(t, s.caps)
 	status := &Status{
 		ProtocolVersion: 66,
 		NetworkID:       s.chain.chainConfig.ChainID.Uint64(),

@@ -45,6 +45,8 @@ var timeout = 20 * time.Second
 type Suite struct {
 	Dest *enode.Node
 
+	caps []p2p.Cap
+
 	chain     *Chain
 	fullChain *Chain
 }
@@ -52,13 +54,14 @@ type Suite struct {
 // NewSuite creates and returns a new eth-test suite that can
 // be used to test the given node against the given blockchain
 // data.
-func NewSuite(dest *enode.Node, chainfile string, genesisfile string) *Suite {
+func NewSuite(dest *enode.Node, chainfile string, genesisfile string, caps []p2p.Cap) *Suite {
 	chain, err := loadChain(chainfile, genesisfile)
 	if err != nil {
 		panic(err)
 	}
 	return &Suite{
 		Dest:      dest,
+		caps: 	   caps,
 		chain:     chain.Shorten(1000),
 		fullChain: chain,
 	}
@@ -91,7 +94,7 @@ func (s *Suite) TestStatus_65(t *utesting.T) {
 		t.Fatalf("could not dial: %v", err)
 	}
 	// get protoHandshake
-	conn.handshake(t)
+	conn.handshake(t, s.caps)
 	// get status
 	switch msg := conn.statusExchange(t, s.chain, nil).(type) {
 	case *Status:
@@ -108,7 +111,7 @@ func (s *Suite) TestMaliciousStatus_65(t *utesting.T) {
 		t.Fatalf("could not dial: %v", err)
 	}
 	// get protoHandshake
-	conn.handshake(t)
+	conn.handshake(t, s.caps)
 	status := &Status{
 		ProtocolVersion: uint32(conn.ethProtocolVersion),
 		NetworkID:       s.chain.chainConfig.ChainID.Uint64(),
@@ -146,7 +149,7 @@ func (s *Suite) getBlockHeaders(t *utesting.T, status *Status) {
 		t.Fatalf("could not dial: %v", err)
 	}
 
-	conn.handshake(t)
+	conn.handshake(t, s.caps)
 	conn.statusExchange(t, s.chain, status)
 
 	// get block headers
@@ -188,7 +191,7 @@ func (s *Suite) getBlockBodies(t *utesting.T, status *Status) {
 		t.Fatalf("could not dial: %v", err)
 	}
 
-	conn.handshake(t)
+	conn.handshake(t, s.caps)
 	conn.statusExchange(t, s.chain, status)
 	// create block bodies request
 	req := &GetBlockBodies{s.chain.blocks[54].Hash(), s.chain.blocks[75].Hash()}
@@ -394,14 +397,14 @@ func (s *Suite) setupConnection(t *utesting.T, status *Status) *Conn {
 	if err != nil {
 		t.Fatalf("could not dial: %v", err)
 	}
-	sendConn.handshake(t)
+	sendConn.handshake(t, s.caps)
 	sendConn.statusExchange(t, s.chain, status)
 	return sendConn
 }
 
 // dial attempts to dial the given node and perform a handshake,
 // returning the created Conn if successful.
-func (s *Suite)  dial() (*Conn, error) {
+func (s *Suite) dial() (*Conn, error) {
 	var conn Conn
 
 	fd, err := net.Dial("tcp", fmt.Sprintf("%v:%d", s.Dest.IP(), s.Dest.TCP()))

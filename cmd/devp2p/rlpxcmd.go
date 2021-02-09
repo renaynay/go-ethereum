@@ -105,7 +105,11 @@ func rlpxEthTest(ctx *cli.Context) error {
 	if ctx.NArg() < 3 {
 		exit("missing path to chain.rlp as command-line argument")
 	}
-	suite := ethtest.NewSuite(getNodeArg(ctx), ctx.Args()[1], ctx.Args()[2])
+	caps := []p2p.Cap{
+		{Name: "eth", Version: 64},
+		{Name: "eth", Version: 65},
+	}
+	suite := ethtest.NewSuite(getNodeArg(ctx), ctx.Args()[1], ctx.Args()[2], caps)
 	return runTests(ctx, suite.EthTests()) // TODO should this run all tests or just < eth66 tests?
 }
 
@@ -113,6 +117,11 @@ func eth66Test(ctx *cli.Context) error {
 	if ctx.NArg() < 3 {
 		exit("missing path to chain.rlp as command-line argument")
 	}
-	suite := ethtest.NewSuite(getNodeArg(ctx), ctx.Args()[1], ctx.Args()[2])
+	caps := []p2p.Cap{
+		{Name: "eth", Version: 64},
+		{Name: "eth", Version: 65},
+		{Name: "eth", Version: 66},
+	}
+	suite := ethtest.NewSuite(getNodeArg(ctx), ctx.Args()[1], ctx.Args()[2], caps)
 	return runTests(ctx, suite.Eth66Tests())
 }

@@ -265,7 +265,7 @@ func (c *Conn) Write(msg Message) error {
 }
 
 // handshake checks to make sure a `HELLO` is received.
-func (c *Conn) handshake(t *utesting.T) Message {
+func (c *Conn) handshake(t *utesting.T, caps []p2p.Cap) Message {
 	defer c.SetDeadline(time.Time{})
 	c.SetDeadline(time.Now().Add(10 * time.Second))
 
@@ -273,10 +273,7 @@ func (c *Conn) handshake(t *utesting.T) Message {
 	pub0 := crypto.FromECDSAPub(&c.ourKey.PublicKey)[1:]
 	ourHandshake := &Hello{
 		Version: 5,
-		Caps: []p2p.Cap{
-			{Name: "eth", Version: 64},
-			{Name: "eth", Version: 65},
-		},
+		Caps: caps,
 		ID: pub0,
 	}
 	if err := c.Write(ourHandshake); err != nil {
