@@ -182,6 +182,7 @@ type Conn struct {
 	*rlpx.Conn
 	ourKey             *ecdsa.PrivateKey
 	ethProtocolVersion uint
+	caps []p2p.Cap
 }
 
 func (c *Conn) Read() Message {

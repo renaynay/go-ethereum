@@ -106,7 +106,7 @@ func rlpxEthTest(ctx *cli.Context) error {
 		exit("missing path to chain.rlp as command-line argument")
 	}
 	suite := ethtest.NewSuite(getNodeArg(ctx), ctx.Args()[1], ctx.Args()[2])
-	return runTests(ctx, suite.AllTests())
+	return runTests(ctx, suite.EthTests())
 }
 
 // rlpxEth66Test runs the eth 66 protocol test suite.
