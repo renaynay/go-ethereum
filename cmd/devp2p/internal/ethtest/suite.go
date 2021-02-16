@@ -40,6 +40,11 @@ var pretty = spew.ConfigState{
 
 var timeout = 20 * time.Second
 
+var ethTestCaps = []p2p.Cap{
+	{Name: "eth", Version: 64},
+	{Name: "eth", Version: 65},
+}
+
 // Suite represents a structure used to test the eth
 // protocol of a node(s).
 type Suite struct {
@@ -64,7 +69,7 @@ func NewSuite(dest *enode.Node, chainfile string, genesisfile string) *Suite {
 	}
 }
 
-func (s *Suite) AllTests() []utesting.Test {
+func (s *Suite) EthTests() []utesting.Test {
 	return []utesting.Test{
 		{Name: "Status", Fn: s.TestStatus},
 		{Name: "GetBlockHeaders", Fn: s.TestGetBlockHeaders},
@@ -383,20 +388,23 @@ func (s *Suite) setupConnection(t *utesting.T) *Conn {
 // returning the created Conn if successful.
 func (s *Suite) dial() (*Conn, error) {
 	var conn Conn
-
+	// dial
 	fd, err := net.Dial("tcp", fmt.Sprintf("%v:%d", s.Dest.IP(), s.Dest.TCP()))
 	if err != nil {
 		return nil, err
 	}
 	conn.Conn = rlpx.NewConn(fd, s.Dest.Pubkey())
-
 	// do encHandshake
 	conn.ourKey, _ = crypto.GenerateKey()
 	_, err = conn.Handshake(conn.ourKey)
 	if err != nil {
 		return nil, err
 	}
-
+	// set default p2p capabilities
+	conn.caps = []p2p.Cap{
+		{Name: "eth", Version: 64},
+		{Name: "eth", Version: 65},
+	}
 	return &conn, nil
 }
 
