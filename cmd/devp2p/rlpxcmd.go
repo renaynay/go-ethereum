@@ -54,7 +54,7 @@ var (
 		},
 	}
 	rlpxEth66TestCommand = cli.Command{
-		Name:      "eth-test",
+		Name:      "eth66-test",
 		Usage:     "Runs eth66 protocol tests against a node",
 		ArgsUsage: "<node> <chain.rlp> <genesis.json>",
 		Action:    rlpxEth66Test,
