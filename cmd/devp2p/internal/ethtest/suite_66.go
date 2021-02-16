@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/stretchr/testify/assert"
+	"time"
 )
 
 // Eth66Tests returns eth protocol tests for the eth 66 protocol version
@@ -68,10 +69,9 @@ func (s *Suite) TestGetBlockHeaders_66(t *utesting.T) {
 		t.Fatalf("could not write to connection: %v", err)
 	}
 	// check block headers response
-	switch msg := conn.ReadAndServe(s.chain, timeout).(type) {
-	case *BlockHeaders:
-		headers := msg
-		for _, header := range *headers {
+	switch msg := conn.readAndServe66(req.RequestId, s.chain, timeout).(type) {
+	case BlockHeaders:
+		for _, header := range msg {
 			num := header.Number.Uint64()
 			t.Logf("received header (%d): %s", num, pretty.Sdump(header))
 			assert.Equal(t, s.chain.blocks[int(num)].Header(), header)
@@ -111,7 +111,7 @@ func (c *Conn) write66(req eth.Packet, code uint64) error {
 	return err
 }
 
-func (c *Conn) read66() (reqID uint64, Message) {
+func (c *Conn) read66() (uint64, Message) {
 	code, rawData, _, err := c.Conn.Read()
 	if err != nil {
 		return 0, errorf("could not read from connection: %v", err)
@@ -136,13 +136,25 @@ func (c *Conn) read66() (reqID uint64, Message) {
 		if err := rlp.DecodeBytes(rawData, ethMsg); err != nil {
 			return 0, errorf("could not rlp decode message: %v", err)
 		}
-		return ethMsg.RequestId, GetBlockHeaders(ethMsg.GetBlockHeadersPacket)
+		return ethMsg.RequestId, GetBlockHeaders(*ethMsg.GetBlockHeadersPacket)
 	case (BlockHeaders{}).Code():
-		ethMsg = new(eth.BlockHeadersPacket66)
+		ethMsg := new(eth.BlockHeadersPacket66)
+		if err := rlp.DecodeBytes(rawData, ethMsg); err != nil {
+			return 0, errorf("could not rlp decode message: %v", err)
+		}
+		return ethMsg.RequestId, BlockHeaders(ethMsg.BlockHeadersPacket)
 	case (GetBlockBodies{}).Code():
-		ethMsg = new(eth.GetBlockBodiesPacket66)
+		ethMsg := new(eth.GetBlockBodiesPacket66)
+		if err := rlp.DecodeBytes(rawData, ethMsg); err != nil {
+			return 0, errorf("could not rlp decode message: %v", err)
+		}
+		return ethMsg.RequestId, GetBlockBodies(ethMsg.GetBlockBodiesPacket)
 	case (BlockBodies{}).Code():
-		ethMsg = new(eth.BlockBodiesPacket66)
+		ethMsg := new(eth.BlockBodiesPacket66)
+		if err := rlp.DecodeBytes(rawData, ethMsg); err != nil {
+			return 0, errorf("could not rlp decode message: %v", err)
+		}
+		return ethMsg.RequestId, BlockBodies(ethMsg.BlockBodiesPacket)
 	case (NewBlock{}).Code(): // TODO what about 66 messages?
 		msg = new(NewBlock)
 	case (NewBlockHashes{}).Code():
@@ -157,9 +169,42 @@ func (c *Conn) read66() (reqID uint64, Message) {
 
 	if msg != nil {
 		if err := rlp.DecodeBytes(rawData, msg); err != nil {
-			return errorf("could not rlp decode message: %v", err)
+			return 0, errorf("could not rlp decode message: %v", err)
 		}
-		return msg
+		return 0, msg
 	}
-	return errorf("invalid message: %s", string(rawData))
+	return 0, errorf("invalid message: %s", string(rawData))
+}
+
+// ReadAndServe serves GetBlockHeaders requests while waiting
+// on another message from the node.
+func (c *Conn) readAndServe66(expectedID uint64, chain *Chain, timeout time.Duration) Message {
+	start := time.Now()
+	for time.Since(start) < timeout {
+		timeout := time.Now().Add(10 * time.Second)
+		c.SetReadDeadline(timeout)
+
+		reqID, msg := c.read66()
+		if reqID != expectedID {
+			return errorf("request ID mismatch: wanted %d, got %d", expectedID, reqID)
+		}
+
+		switch msg.(type) {
+		case *Ping:
+			c.Write(&Pong{})
+		case *GetBlockHeaders:
+			req := *msg.(*GetBlockHeaders)
+			headers, err := chain.GetHeaders(req)
+			if err != nil {
+				return errorf("could not get headers for inbound header request: %v", err)
+			}
+
+			if err := c.Write(headers); err != nil {
+				return errorf("could not write to connection: %v", err)
+			}
+		default:
+			return msg
+		}
+	}
+	return errorf("no message received within %v", timeout)
 }
