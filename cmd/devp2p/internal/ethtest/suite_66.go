@@ -1,4 +1,18 @@
-// TODO add license
+// Copyright 2021 The go-ethereum Authors
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 package ethtest
 
@@ -19,7 +33,7 @@ func (s *Suite) Eth66Tests() []utesting.Test {
 		{Name: "Status_66", Fn: s.TestStatus_66},
 		{Name: "GetBlockHeaders_66", Fn: s.TestGetBlockHeaders_66},
 		{Name: "Broadcast_66", Fn: s.TestBroadcast_66},
-		//{Name: "GetBlockBodies_66", Fn: s.TestGetBlockBodies},
+		{Name: "GetBlockBodies_66", Fn: s.TestGetBlockBodies_66},
 		//{Name: "TestLargeAnnounce_66", Fn: s.TestLargeAnnounce},
 		//{Name: "TestMaliciousHandshake_66", Fn: s.TestMaliciousHandshake},
 		//{Name: "TestMaliciousStatus_66", Fn: s.TestMaliciousStatus},
@@ -106,6 +120,31 @@ func (s *Suite) dial_66(t *utesting.T) *Conn {
 	}
 	conn.caps = append(conn.caps, p2p.Cap{"eth", 66})
 	return conn
+}
+
+// TestGetBlockBodies_66 tests whether the given node can respond to
+// a `GetBlockBodies` request and that the response is accurate.
+func (s *Suite) TestGetBlockBodies_66(t *utesting.T) {
+	conn := s.setupConnection66(t)
+	// create block bodies request
+	id := uint64(55)
+	req := &eth.GetBlockBodiesPacket66{
+		RequestId:            id,
+		GetBlockBodiesPacket: eth.GetBlockBodiesPacket{
+			s.chain.blocks[54].Hash(),
+			s.chain.blocks[75].Hash(),
+		},
+	}
+	if err := conn.write66(req, GetBlockBodies{}.Code()); err != nil {
+		t.Fatalf("could not write to connection: %v", err)
+	}
+
+	switch msg := conn.readAndServe66(id, s.chain, timeout).(type) {
+	case BlockBodies:
+		t.Logf("received %d block bodies", len(msg))
+	default:
+		t.Fatalf("unexpected: %s", pretty.Sdump(msg))
+	}
 }
 
 func (c *Conn) statusExchange_66(t *utesting.T, chain *Chain) Message {
