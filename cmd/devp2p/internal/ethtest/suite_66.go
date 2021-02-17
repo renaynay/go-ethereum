@@ -34,7 +34,7 @@ func (s *Suite) Eth66Tests() []utesting.Test {
 		{Name: "GetBlockHeaders_66", Fn: s.TestGetBlockHeaders_66},
 		{Name: "Broadcast_66", Fn: s.TestBroadcast_66},
 		{Name: "GetBlockBodies_66", Fn: s.TestGetBlockBodies_66},
-		//{Name: "TestLargeAnnounce_66", Fn: s.TestLargeAnnounce},
+		{Name: "TestLargeAnnounce_66", Fn: s.TestLargeAnnounce_66},
 		//{Name: "TestMaliciousHandshake_66", Fn: s.TestMaliciousHandshake},
 		//{Name: "TestMaliciousStatus_66", Fn: s.TestMaliciousStatus},
 		//{Name: "TestTransactions_66", Fn: s.TestTransaction},
@@ -144,6 +144,55 @@ func (s *Suite) TestGetBlockBodies_66(t *utesting.T) {
 		t.Logf("received %d block bodies", len(msg))
 	default:
 		t.Fatalf("unexpected: %s", pretty.Sdump(msg))
+	}
+}
+
+// TestLargeAnnounce_66 tests the announcement mechanism with a large block.
+func (s *Suite) TestLargeAnnounce_66(t *utesting.T) {
+	nextBlock := len(s.chain.blocks)
+	blocks := []*NewBlock{
+		{
+			Block: largeBlock(),
+			TD:    s.fullChain.TD(nextBlock + 1),
+		},
+		{
+			Block: s.fullChain.blocks[nextBlock],
+			TD:    largeNumber(2),
+		},
+		{
+			Block: largeBlock(),
+			TD:    largeNumber(2),
+		},
+		{
+			Block: s.fullChain.blocks[nextBlock],
+			TD:    s.fullChain.TD(nextBlock + 1),
+		},
+	}
+
+	for i, blockAnnouncement := range blocks[0:3] {
+		t.Logf("Testing malicious announcement: %v\n", i)
+		sendConn := s.setupConnection66(t)
+		if err := sendConn.Write(blockAnnouncement); err != nil {
+			t.Fatalf("could not write to connection: %v", err)
+		}
+		// Invalid announcement, check that peer disconnected
+		switch msg := sendConn.ReadAndServe(s.chain, timeout).(type) {
+		case *Disconnect:
+		case *Error:
+			break
+		default:
+			t.Fatalf("unexpected: %s wanted disconnect", pretty.Sdump(msg))
+		}
+	}
+	// Test the last block as a valid block
+	sendConn := s.setupConnection66(t)
+	receiveConn := s.setupConnection66(t)
+	s.testAnnounce66(t, sendConn, receiveConn, blocks[3])
+	// update test suite chain
+	s.chain.blocks = append(s.chain.blocks, s.fullChain.blocks[nextBlock])
+	// wait for client to update its chain
+	if err := receiveConn.waitForBlock_66(s.fullChain.blocks[nextBlock]); err != nil {
+		t.Fatal(err)
 	}
 }
 
