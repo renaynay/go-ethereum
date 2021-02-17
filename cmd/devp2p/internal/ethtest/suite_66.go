@@ -19,6 +19,7 @@ package ethtest
 import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/internal/utesting"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -35,7 +36,7 @@ func (s *Suite) Eth66Tests() []utesting.Test {
 		{Name: "Broadcast_66", Fn: s.TestBroadcast_66},
 		{Name: "GetBlockBodies_66", Fn: s.TestGetBlockBodies_66},
 		{Name: "TestLargeAnnounce_66", Fn: s.TestLargeAnnounce_66},
-		//{Name: "TestMaliciousHandshake_66", Fn: s.TestMaliciousHandshake},
+		{Name: "TestMaliciousHandshake_66", Fn: s.TestMaliciousHandshake_66},
 		//{Name: "TestMaliciousStatus_66", Fn: s.TestMaliciousStatus},
 		//{Name: "TestTransactions_66", Fn: s.TestTransaction},
 		//{Name: "TestMaliciousTransactions_66", Fn: s.TestMaliciousTx},
@@ -193,6 +194,79 @@ func (s *Suite) TestLargeAnnounce_66(t *utesting.T) {
 	// wait for client to update its chain
 	if err := receiveConn.waitForBlock_66(s.fullChain.blocks[nextBlock]); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestMaliciousHandshake_66 tries to send malicious data during the handshake.
+func (s *Suite) TestMaliciousHandshake_66(t *utesting.T) {
+	conn := s.dial_66(t)
+	// write hello to client
+	pub0 := crypto.FromECDSAPub(&conn.ourKey.PublicKey)[1:]
+	handshakes := []*Hello{
+		{
+			Version: 5,
+			Caps: []p2p.Cap{
+				{Name: largeString(2), Version: 66},
+			},
+			ID: pub0,
+		},
+		{
+			Version: 5,
+			Caps: []p2p.Cap{
+				{Name: "eth", Version: 64},
+				{Name: "eth", Version: 65},
+				{Name: "eth", Version: 66},
+			},
+			ID: append(pub0, byte(0)),
+		},
+		{
+			Version: 5,
+			Caps: []p2p.Cap{
+				{Name: "eth", Version: 64},
+				{Name: "eth", Version: 65},
+				{Name: "eth", Version: 66},
+			},
+			ID: append(pub0, pub0...),
+		},
+		{
+			Version: 5,
+			Caps: []p2p.Cap{
+				{Name: "eth", Version: 64},
+				{Name: "eth", Version: 65},
+				{Name: "eth", Version: 66},
+			},
+			ID: largeBuffer(2),
+		},
+		{
+			Version: 5,
+			Caps: []p2p.Cap{
+				{Name: largeString(2), Version: 66},
+			},
+			ID: largeBuffer(2),
+		},
+	}
+	for i, handshake := range handshakes {
+		t.Logf("Testing malicious handshake %v\n", i)
+		// Init the handshake
+		if err := conn.Write(handshake); err != nil {
+			t.Fatalf("could not write to connection: %v", err)
+		}
+		// check that the peer disconnected
+		timeout := 20 * time.Second
+		// Discard one hello
+		for i := 0; i < 2; i++ {
+			switch msg := conn.ReadAndServe(s.chain, timeout).(type) {
+			case *Disconnect:
+			case *Error:
+			case *Hello:
+				// Hello's are send concurrently, so ignore them
+				continue
+			default:
+				t.Fatalf("unexpected: %s", pretty.Sdump(msg))
+			}
+		}
+		// Dial for the next round
+		conn = s.dial_66(t)
 	}
 }
 
