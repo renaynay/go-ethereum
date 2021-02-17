@@ -38,8 +38,8 @@ func (s *Suite) Eth66Tests() []utesting.Test {
 		{Name: "TestLargeAnnounce_66", Fn: s.TestLargeAnnounce_66},
 		{Name: "TestMaliciousHandshake_66", Fn: s.TestMaliciousHandshake_66},
 		{Name: "TestMaliciousStatus_66", Fn: s.TestMaliciousStatus},
-		//{Name: "TestTransactions_66", Fn: s.TestTransaction},
-		//{Name: "TestMaliciousTransactions_66", Fn: s.TestMaliciousTx},
+		{Name: "TestTransactions_66", Fn: s.TestTransaction_66},
+		{Name: "TestMaliciousTransactions_66", Fn: s.TestMaliciousTx},
 	}
 }
 
@@ -300,6 +300,31 @@ func (s *Suite) TestMaliciousStatus_66(t *utesting.T) {
 	}
 }
 
+func (s *Suite) TestTransaction_66(t *utesting.T) {
+	tests := []*types.Transaction{
+		getNextTxFromChain(t, s),
+		unknownTx(t, s),
+	}
+	for i, tx := range tests {
+		t.Logf("Testing tx propagation: %v\n", i)
+		sendSuccessfulTx66(t, s, tx)
+	}
+}
+
+func (s *Suite) TestMaliciousTx_66(t *utesting.T) {
+	tests := []*types.Transaction{
+		getOldTxFromChain(t, s),
+		invalidNonceTx(t, s),
+		hugeAmount(t, s),
+		hugeGasPrice(t, s),
+		hugeData(t, s),
+	}
+	for i, tx := range tests {
+		t.Logf("Testing malicious tx propagation: %v\n", i)
+		sendFailingTx66(t, s, tx)
+	}
+}
+
 func (c *Conn) statusExchange_66(t *utesting.T, chain *Chain) Message {
 	status := &Status{
 		ProtocolVersion: uint32(66),
@@ -496,5 +521,65 @@ func (c *Conn) waitForBlock_66(block *types.Block) error {
 		default:
 			return fmt.Errorf("invalid message: %s", pretty.Sdump(msg))
 		}
+	}
+}
+
+
+func sendSuccessfulTx66(t *utesting.T, s *Suite, tx *types.Transaction) {
+	sendConn := s.setupConnection66(t)
+	t.Logf("sending tx: %v %v %v\n", tx.Hash().String(), tx.GasPrice(), tx.Gas())
+	// Send the transaction
+	if err := sendConn.Write(&Transactions{tx}); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	recvConn := s.setupConnection66(t)
+	// Wait for the transaction announcement
+	switch msg := recvConn.ReadAndServe(s.chain, timeout).(type) {
+	case *Transactions:
+		recTxs := *msg
+		if len(recTxs) < 1 {
+			t.Fatalf("received transactions do not match send: %v", recTxs)
+		}
+		if tx.Hash() != recTxs[len(recTxs)-1].Hash() {
+			t.Fatalf("received transactions do not match send: got %v want %v", recTxs, tx)
+		}
+	case *NewPooledTransactionHashes:
+		txHashes := *msg
+		if len(txHashes) < 1 {
+			t.Fatalf("received transactions do not match send: %v", txHashes)
+		}
+		if tx.Hash() != txHashes[len(txHashes)-1] {
+			t.Fatalf("wrong announcement received, wanted %v got %v", tx, txHashes)
+		}
+	default:
+		t.Fatalf("unexpected message in sendSuccessfulTx: %s", pretty.Sdump(msg))
+	}
+}
+
+func sendFailingTx66(t *utesting.T, s *Suite, tx *types.Transaction) {
+	sendConn, recvConn := s.setupConnection66(t), s.setupConnection66(t)
+	// Wait for a transaction announcement
+	switch msg := recvConn.ReadAndServe(s.chain, timeout).(type) {
+	case *NewPooledTransactionHashes:
+		break
+	default:
+		t.Logf("unexpected message, logging: %v", pretty.Sdump(msg))
+	}
+	// Send the transaction
+	if err := sendConn.Write(&Transactions{tx}); err != nil {
+		t.Fatal(err)
+	}
+	// Wait for another transaction announcement
+	switch msg := recvConn.ReadAndServe(s.chain, timeout).(type) {
+	case *Transactions:
+		t.Fatalf("Received unexpected transaction announcement: %v", msg)
+	case *NewPooledTransactionHashes:
+		t.Fatalf("Received unexpected pooledTx announcement: %v", msg)
+	case *Error:
+		// Transaction should not be announced -> wait for timeout
+		return
+	default:
+		t.Fatalf("unexpected message in sendFailingTx: %s", pretty.Sdump(msg))
 	}
 }
