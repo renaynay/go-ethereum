@@ -37,7 +37,7 @@ func (s *Suite) Eth66Tests() []utesting.Test {
 		{Name: "GetBlockBodies_66", Fn: s.TestGetBlockBodies_66},
 		{Name: "TestLargeAnnounce_66", Fn: s.TestLargeAnnounce_66},
 		{Name: "TestMaliciousHandshake_66", Fn: s.TestMaliciousHandshake_66},
-		//{Name: "TestMaliciousStatus_66", Fn: s.TestMaliciousStatus},
+		{Name: "TestMaliciousStatus_66", Fn: s.TestMaliciousStatus},
 		//{Name: "TestTransactions_66", Fn: s.TestTransaction},
 		//{Name: "TestMaliciousTransactions_66", Fn: s.TestMaliciousTx},
 	}
@@ -267,6 +267,36 @@ func (s *Suite) TestMaliciousHandshake_66(t *utesting.T) {
 		}
 		// Dial for the next round
 		conn = s.dial_66(t)
+	}
+}
+
+// TestMaliciousStatus_66 sends a status package with a large total difficulty.
+func (s *Suite) TestMaliciousStatus_66(t *utesting.T) {
+	conn := s.dial_66(t)
+	// get protoHandshake
+	conn.handshake(t)
+	status := &Status{
+		ProtocolVersion: uint32(conn.ethProtocolVersion),
+		NetworkID:       s.chain.chainConfig.ChainID.Uint64(),
+		TD:              largeNumber(2),
+		Head:            s.chain.blocks[s.chain.Len()-1].Hash(),
+		Genesis:         s.chain.blocks[0].Hash(),
+		ForkID:          s.chain.ForkID(),
+	}
+	// get status
+	switch msg := conn.statusExchange(t, s.chain, status).(type) {
+	case *Status:
+		t.Logf("%+v\n", msg)
+	default:
+		t.Fatalf("expected status, got: %#v ", msg)
+	}
+	// wait for disconnect
+	switch msg := conn.ReadAndServe(s.chain, timeout).(type) {
+	case *Disconnect:
+	case *Error:
+		return
+	default:
+		t.Fatalf("expected disconnect, got: %s", pretty.Sdump(msg))
 	}
 }
 
