@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/internal/utesting"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/stretchr/testify/assert"
 	"time"
 )
 
@@ -16,13 +15,14 @@ func (s *Suite) Eth66Tests() []utesting.Test {
 	return []utesting.Test{
 		{Name: "Status_66", Fn: s.TestStatus_66},
 		{Name: "GetBlockHeaders_66", Fn: s.TestGetBlockHeaders_66},
+		{Name: "TestSimultaneousRequests_66", Fn: s.TestSimultaneousRequests_66},
 		{Name: "Broadcast_66", Fn: s.TestBroadcast_66},
 		{Name: "GetBlockBodies_66", Fn: s.TestGetBlockBodies_66},
 		{Name: "TestLargeAnnounce_66", Fn: s.TestLargeAnnounce_66},
 		{Name: "TestMaliciousHandshake_66", Fn: s.TestMaliciousHandshake_66},
 		{Name: "TestMaliciousStatus_66", Fn: s.TestMaliciousStatus},
 		{Name: "TestTransactions_66", Fn: s.TestTransaction_66},
-		{Name: "TestMaliciousTransactions_66", Fn: s.TestMaliciousTx},
+		{Name: "TestMaliciousTransactions_66", Fn: s.TestMaliciousTx_66},
 	}
 }
 
@@ -63,20 +63,50 @@ func (s *Suite) TestGetBlockHeaders_66(t *utesting.T) {
 		},
 	}
 	// write message
-	if err := conn.write66(req, GetBlockHeaders{}.Code()); err != nil {
-		t.Fatalf("could not write to connection: %v", err)
+	headers := s.getBlockHeaders66(t, conn, req, req.RequestId)
+	// check for correct headers
+	headersMatch(t, s.chain, headers)
+}
+
+// TestSimultaneousRequests_66 sends two simultaneous `GetBlockHeader` requests
+// with different request IDs and checks to make sure the node responds with the correct
+// headers per request.
+func (s *Suite) TestSimultaneousRequests_66(t *utesting.T) {
+	// create two connections
+	conn1, conn2 := s.setupConnection66(t), s.setupConnection66(t)
+	// create two requests
+	req1 := &eth.GetBlockHeadersPacket66{
+		RequestId:             111,
+		GetBlockHeadersPacket: &eth.GetBlockHeadersPacket{
+			Origin: eth.HashOrNumber{
+				Hash: s.chain.blocks[1].Hash(),
+			},
+			Amount:  2,
+			Skip:    1,
+			Reverse: false,
+		},
 	}
-	// check block headers response
-	switch msg := conn.readAndServe66(req.RequestId, s.chain, timeout).(type) {
-	case BlockHeaders:
-		for _, header := range msg {
-			num := header.Number.Uint64()
-			t.Logf("received header (%d): %s", num, pretty.Sdump(header))
-			assert.Equal(t, s.chain.blocks[int(num)].Header(), header)
-		}
-	default:
-		t.Fatalf("unexpected: %s", pretty.Sdump(msg))
+	req2 := &eth.GetBlockHeadersPacket66{
+		RequestId:             222,
+		GetBlockHeadersPacket: &eth.GetBlockHeadersPacket{
+			Origin: eth.HashOrNumber{
+				Hash: s.chain.blocks[1].Hash(),
+			},
+			Amount:  4,
+			Skip:    1,
+			Reverse: false,
+		},
 	}
+	// wait for headers for first request
+	headerChan := make(chan BlockHeaders, 1)
+	go func(headers chan BlockHeaders) {
+		headers <- s.getBlockHeaders66(t, conn1, req1, req1.RequestId)
+	}(headerChan)
+	// check headers of second request
+	headersMatch(t, s.chain, s.getBlockHeaders66(t, conn2, req2, req2.RequestId))
+
+	// check headers of first request
+	headersMatch(t, s.chain, <- headerChan)
 }
 
 // TestBroadcast_66 tests whether a block announcement is correctly

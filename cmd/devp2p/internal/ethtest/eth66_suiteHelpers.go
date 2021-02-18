@@ -285,3 +285,25 @@ func sendFailingTx66(t *utesting.T, s *Suite, tx *types.Transaction) {
 		t.Fatalf("unexpected message in sendFailingTx: %s", pretty.Sdump(msg))
 	}
 }
+
+func (s *Suite) getBlockHeaders66(t *utesting.T, conn *Conn, req eth.Packet, reqID uint64) BlockHeaders {
+	if err := conn.write66(req, GetBlockHeaders{}.Code()); err != nil {
+		t.Fatalf("could not write to connection: %v", err)
+	}
+	// check block headers response
+	switch msg := conn.readAndServe66(reqID, s.chain, timeout).(type) {
+	case BlockHeaders:
+		return msg
+	default:
+		t.Fatalf("unexpected: %s", pretty.Sdump(msg))
+		return nil
+	}
+}
+
+func headersMatch(t *utesting.T, chain *Chain, headers BlockHeaders) {
+	for _, header := range headers {
+		num := header.Number.Uint64()
+		t.Logf("received header (%d): %s", num, pretty.Sdump(header))
+		assert.Equal(t, chain.blocks[int(num)].Header(), header)
+	}
+}
