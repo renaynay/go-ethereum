@@ -17,12 +17,13 @@
 package ethtest
 
 import (
+	"time"
+
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/internal/utesting"
 	"github.com/ethereum/go-ethereum/p2p"
-	"time"
 )
 
 // Eth66Tests returns all eth 66 protocol version tests
@@ -67,7 +68,7 @@ func (s *Suite) TestGetBlockHeaders_66(t *utesting.T) {
 	conn := s.setupConnection66(t)
 	// get block headers
 	req := &eth.GetBlockHeadersPacket66{
-		RequestId:             3,
+		RequestId: 3,
 		GetBlockHeadersPacket: &eth.GetBlockHeadersPacket{
 			Origin: eth.HashOrNumber{
 				Hash: s.chain.blocks[1].Hash(),
@@ -91,7 +92,7 @@ func (s *Suite) TestSimultaneousRequests_66(t *utesting.T) {
 	conn1, conn2 := s.setupConnection66(t), s.setupConnection66(t)
 	// create two requests
 	req1 := &eth.GetBlockHeadersPacket66{
-		RequestId:             111,
+		RequestId: 111,
 		GetBlockHeadersPacket: &eth.GetBlockHeadersPacket{
 			Origin: eth.HashOrNumber{
 				Hash: s.chain.blocks[1].Hash(),
@@ -102,7 +103,7 @@ func (s *Suite) TestSimultaneousRequests_66(t *utesting.T) {
 		},
 	}
 	req2 := &eth.GetBlockHeadersPacket66{
-		RequestId:             222,
+		RequestId: 222,
 		GetBlockHeadersPacket: &eth.GetBlockHeadersPacket{
 			Origin: eth.HashOrNumber{
 				Hash: s.chain.blocks[1].Hash(),
@@ -121,7 +122,7 @@ func (s *Suite) TestSimultaneousRequests_66(t *utesting.T) {
 	headersMatch(t, s.chain, s.getBlockHeaders66(t, conn2, req2, req2.RequestId))
 
 	// check headers of first request
-	headersMatch(t, s.chain, <- headerChan)
+	headersMatch(t, s.chain, <-headerChan)
 }
 
 // TestBroadcast_66 tests whether a block announcement is correctly
@@ -147,7 +148,7 @@ func (s *Suite) dial_66(t *utesting.T) *Conn {
 	if err != nil {
 		t.Fatalf("could not dial: %v", err)
 	}
-	conn.caps = append(conn.caps, p2p.Cap{"eth", 66})
+	conn.caps = append(conn.caps, p2p.Cap{Name: "eth", Version: 66})
 	return conn
 }
 
@@ -158,7 +159,7 @@ func (s *Suite) TestGetBlockBodies_66(t *utesting.T) {
 	// create block bodies request
 	id := uint64(55)
 	req := &eth.GetBlockBodiesPacket66{
-		RequestId:            id,
+		RequestId: id,
 		GetBlockBodiesPacket: eth.GetBlockBodiesPacket{
 			s.chain.blocks[54].Hash(),
 			s.chain.blocks[75].Hash(),

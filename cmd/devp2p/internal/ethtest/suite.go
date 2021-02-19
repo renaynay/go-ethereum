@@ -41,11 +41,6 @@ var pretty = spew.ConfigState{
 
 var timeout = 20 * time.Second
 
-var ethTestCaps = []p2p.Cap{
-	{Name: "eth", Version: 64},
-	{Name: "eth", Version: 65},
-}
-
 // Suite represents a structure used to test the eth
 // protocol of a node(s).
 type Suite struct {

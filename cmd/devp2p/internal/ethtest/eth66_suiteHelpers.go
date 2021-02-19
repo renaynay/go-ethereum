@@ -123,7 +123,7 @@ func (c *Conn) readAndServe66(expectedID uint64, chain *Chain, timeout time.Dura
 
 		reqID, msg := c.read66()
 
-		switch msg.(type) {
+		switch msg := msg.(type) {
 		case *Ping:
 			c.Write(&Pong{})
 		case *GetBlockHeaders:
@@ -131,8 +131,7 @@ func (c *Conn) readAndServe66(expectedID uint64, chain *Chain, timeout time.Dura
 			if reqID != expectedID {
 				return errorf("request ID mismatch: wanted %d, got %d", expectedID, reqID)
 			}
-			req := *msg.(*GetBlockHeaders)
-			headers, err := chain.GetHeaders(req)
+			headers, err := chain.GetHeaders(*msg)
 			if err != nil {
 				return errorf("could not get headers for inbound header request: %v", err)
 			}
@@ -177,9 +176,9 @@ func (s *Suite) waitAnnounce66(t *utesting.T, conn *Conn, blockAnnouncement *New
 			"wrong TD in announcement",
 		)
 	case *NewBlockHashes:
-		message := *msg
-		t.Logf("received NewBlockHashes message: %s", pretty.Sdump(message))
-		assert.Equal(t, blockAnnouncement.Block.Hash(), message[0].Hash,
+		blockHashes := *msg
+		t.Logf("received NewBlockHashes message: %s", pretty.Sdump(blockHashes))
+		assert.Equal(t, blockAnnouncement.Block.Hash(), blockHashes[0].Hash,
 			"wrong block hash in announcement",
 		)
 	default:
@@ -196,7 +195,7 @@ func (c *Conn) waitForBlock_66(block *types.Block) error {
 	c.SetReadDeadline(timeout)
 	for {
 		req := eth.GetBlockHeadersPacket66{
-			RequestId:             54,
+			RequestId: 54,
 			GetBlockHeadersPacket: &eth.GetBlockHeadersPacket{
 				Origin: eth.HashOrNumber{
 					Hash: block.Hash(),
@@ -210,13 +209,13 @@ func (c *Conn) waitForBlock_66(block *types.Block) error {
 
 		reqID, msg := c.read66()
 		// check message
-		switch msg.(type) {
+		switch msg := msg.(type) {
 		case BlockHeaders:
 			// check request ID
 			if reqID != req.RequestId {
 				return fmt.Errorf("request ID mismatch: wanted %d, got %d", req.RequestId, reqID)
 			}
-			if len(msg.(BlockHeaders)) > 0 {
+			if len(msg) > 0 {
 				return nil
 			}
 			time.Sleep(100 * time.Millisecond)
@@ -225,7 +224,6 @@ func (c *Conn) waitForBlock_66(block *types.Block) error {
 		}
 	}
 }
-
 
 func sendSuccessfulTx66(t *utesting.T, s *Suite, tx *types.Transaction) {
 	sendConn := s.setupConnection66(t)
