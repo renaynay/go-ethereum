@@ -115,7 +115,7 @@ func (c *Conn) read66() (uint64, Message) {
 
 // ReadAndServe serves GetBlockHeaders requests while waiting
 // on another message from the node.
-func (c *Conn) readAndServe66(expectedID uint64, chain *Chain, timeout time.Duration) Message {
+func (c *Conn) readAndServe66(chain *Chain, timeout time.Duration) (uint64, Message) {
 	start := time.Now()
 	for time.Since(start) < timeout {
 		timeout := time.Now().Add(10 * time.Second)
@@ -127,23 +127,19 @@ func (c *Conn) readAndServe66(expectedID uint64, chain *Chain, timeout time.Dura
 		case *Ping:
 			c.Write(&Pong{})
 		case *GetBlockHeaders:
-			// check request IDg
-			if reqID != expectedID {
-				return errorf("request ID mismatch: wanted %d, got %d", expectedID, reqID)
-			}
 			headers, err := chain.GetHeaders(*msg)
 			if err != nil {
-				return errorf("could not get headers for inbound header request: %v", err)
+				return 0, errorf("could not get headers for inbound header request: %v", err)
 			}
 
 			if err := c.Write(headers); err != nil {
-				return errorf("could not write to connection: %v", err)
+				return 0, errorf("could not write to connection: %v", err)
 			}
 		default:
-			return msg
+			return reqID, msg
 		}
 	}
-	return errorf("no message received within %v", timeout)
+	return 0, errorf("no message received within %v", timeout)
 }
 
 func (s *Suite) setupConnection66(t *utesting.T) *Conn {
@@ -164,7 +160,8 @@ func (s *Suite) testAnnounce66(t *utesting.T, sendConn, receiveConn *Conn, block
 
 func (s *Suite) waitAnnounce66(t *utesting.T, conn *Conn, blockAnnouncement *NewBlock) {
 	timeout := 20 * time.Second
-	switch msg := conn.readAndServe66(0, s.chain, timeout).(type) {
+	_, msg := conn.readAndServe66(s.chain, timeout)
+	switch msg := msg.(type) {
 	case *NewBlock:
 		t.Logf("received NewBlock message: %s", pretty.Sdump(msg.Block))
 		assert.Equal(t,
@@ -284,13 +281,18 @@ func sendFailingTx66(t *utesting.T, s *Suite, tx *types.Transaction) {
 	}
 }
 
-func (s *Suite) getBlockHeaders66(t *utesting.T, conn *Conn, req eth.Packet, reqID uint64) BlockHeaders {
+func (s *Suite) getBlockHeaders66(t *utesting.T, conn *Conn, req eth.Packet, expectedID uint64) BlockHeaders {
 	if err := conn.write66(req, GetBlockHeaders{}.Code()); err != nil {
 		t.Fatalf("could not write to connection: %v", err)
 	}
 	// check block headers response
-	switch msg := conn.readAndServe66(reqID, s.chain, timeout).(type) {
+	reqID, msg := conn.readAndServe66(s.chain, timeout)
+
+	switch msg := msg.(type) {
 	case BlockHeaders:
+		if reqID != expectedID {
+			t.Fatalf("request ID mismatch: wanted %d, got %d", expectedID, reqID)
+		}
 		return msg
 	default:
 		t.Fatalf("unexpected: %s", pretty.Sdump(msg))
