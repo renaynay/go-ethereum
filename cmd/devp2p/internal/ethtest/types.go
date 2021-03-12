@@ -181,6 +181,7 @@ func (c *Conn) ReadAndServe(chain *Chain, timeout time.Duration) Message {
 		c.SetReadDeadline(timeout)
 		switch msg := c.Read().(type) {
 		case *Ping:
+			fmt.Println("sending pong in response to ping...")
 			c.Write(&Pong{})
 		case *GetBlockHeaders:
 			req := *msg

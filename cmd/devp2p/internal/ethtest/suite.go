@@ -84,6 +84,7 @@ func (s *Suite) EthTests() []utesting.Test {
 		{Name: "Broadcast_66", Fn: s.TestBroadcast_66},
 		{Name: "TestLargeAnnounce", Fn: s.TestLargeAnnounce},
 		{Name: "TestLargeAnnounce_66", Fn: s.TestLargeAnnounce_66},
+		{Name: "TestBlockHashAnnounce", Fn: s.TestBlockHashAnnounce},
 		// malicious handshakes + status
 		{Name: "TestMaliciousHandshake", Fn: s.TestMaliciousHandshake},
 		{Name: "TestMaliciousStatus", Fn: s.TestMaliciousStatus},
@@ -354,6 +355,63 @@ func (s *Suite) TestLargeAnnounce(t *utesting.T) {
 	// wait for client to update its chain
 	if err := receiveConn.waitForBlock(s.fullChain.blocks[nextBlock]); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func (s *Suite) TestBlockHashAnnounce(t *utesting.T) {
+	nextBlock := s.fullChain.blocks[s.chain.Len()]
+	newBlockHash := NewBlockHashes{
+		{Hash: nextBlock.Hash(), Number: nextBlock.Number().Uint64()},
+	}
+	conn := s.setupConnection(t)
+	if err := conn.Write(newBlockHash); err != nil {
+		t.Fatalf("could not write to connection: %v", err)
+	}
+	// expect GetBlockHeaders request, and respond
+	switch msg := conn.Read().(type) {
+	case *GetBlockHeaders:
+		blockHeaderReq := *msg
+		if blockHeaderReq.Amount != 1 {
+			t.Fatalf("unexpected number of block headers requested: %v", blockHeaderReq.Amount)
+		}
+		if blockHeaderReq.Origin.Hash != nextBlock.Hash() {
+			t.Fatalf("unexpected block header requested: %v", pretty.Sdump(blockHeaderReq))
+		}
+		if err := conn.Write(&BlockHeaders{nextBlock.Header()}); err != nil {
+			t.Fatalf("could not write to connection: %v", err)
+		}
+	default:
+		t.Fatalf("unexpected %s", pretty.Sdump(msg))
+	}
+	// create new connection to wait for block announcement
+	recvConn := s.setupConnection(t)
+	// update the chain
+	s.chain.blocks = append(s.chain.blocks, nextBlock)
+	switch msg := recvConn.ReadAndServe(s.chain, timeout*5).(type) {
+	case *NewBlockHashes:
+		announcement := *msg
+		if len(announcement) != 1 {
+			t.Fatal("unexpected new block hash announcement: wanted 1 announcement, got %d", len(announcement))
+		}
+		if nextBlock.Hash() != announcement[0].Hash {
+			t.Fatalf("unexpected block hash announcement, wanted %v, got %v", nextBlock.Hash(),
+				announcement[0].Hash)
+		}
+	case *NewBlock:
+		newBlock := *msg
+		// node should only propagate NewBlock without having requested the body if the body is empty
+		nextBlockBody := nextBlock.Body()
+		if len(nextBlockBody.Transactions) !=  0 || len(nextBlockBody.Uncles) != 0 {
+			t.Fatalf("unexpected non-empty new block propagated: %s", pretty.Sdump(msg))
+		}
+		if newBlock.Block.Hash() != nextBlock.Hash() {
+			t.Fatalf("mismatched hash of propagated new block: wanted %v, got %v",
+				nextBlock.Hash(), newBlock.Block.Hash())
+		}
+		// check to make sure header matches header that was sent to the node
+		assert.Equal(t, nextBlock.Header(), newBlock.Block.Header())
+	default:
+		t.Fatalf("unexpected: %s", pretty.Sdump(msg))
 	}
 }
 
