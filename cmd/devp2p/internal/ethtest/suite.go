@@ -18,7 +18,6 @@ package ethtest
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"net"
 	"time"
 
@@ -452,51 +451,58 @@ func (s *Suite) TestMaliciousTx(t *utesting.T) {
 }
 
 func (s *Suite) TestLargeTxRequest(t *utesting.T) {
-	sendConn := s.setupConnection(t)
-	newTxs := make(map[common.Hash]*types.Transaction)
-	newTxHashes := make([]common.Hash, 2000)
-	// create 2000 transactions
-	for i := 0; i < 2000; i++ {
-		tx := unknownTx(t, s)
-		t.Log("tx generated: ", tx.Hash())
-		newTxs[tx.Hash()] = tx
-		newTxHashes[i] = tx.Hash()
+	for _, block := range s.fullChain.blocks[s.chain.Len():] {
+		fmt.Println("block number: ", block.Number(), "tx count", len(block.Transactions()))
+
 	}
 
-	newPooledTxHashes := NewPooledTransactionHashes(newTxHashes)
-	if err := sendConn.Write(&newPooledTxHashes); err != nil {
-		t.Fatalf("could not write to connection: %v", err)
-	}
 
-	switch msg := sendConn.ReadAndServe(s.chain, timeout).(type) {
-	case *GetPooledTransactions:
-		req := *msg
 
-		resp := make([]*types.Transaction, len(req))
-		for i, tx := range req {
-			resp[i] = newTxs[tx]
-		}
-
-		pooledTxs := PooledTransactions(resp)
-		if err := sendConn.Write(&pooledTxs); err != nil {
-			t.Fatalf("could not write to connection: %v", err)
-		}
-	default:
-		t.Fatalf("unexpected %s", pretty.Sdump(msg))
-	}
-
-	requestConn := s.setupConnection(t)
-	time.Sleep(time.Second*20)
-	// TODO: only request 250 hashes (see if it works)
-	if err := requestConn.Write(GetPooledTransactions(newTxHashes[:250])); err != nil {
-		t.Fatalf("could not write to connection: %v", err)
-	}
-
-	switch msg := requestConn.ReadAndServe(s.chain, timeout).(type) {
-	case *PooledTransactions:
-		pooledTxs := *msg
-		t.Logf("SUCCESS!!!!!!!!!!!!!!!!! \n\n: %d", len(pooledTxs))
-	default:
-		t.Fatal(pretty.Sdump(msg))
-	}
+	//sendConn := s.setupConnection(t)
+	//newTxs := make(map[common.Hash]*types.Transaction)
+	//newTxHashes := make([]common.Hash, 2000)
+	//// create 2000 transactions
+	//for i := 0; i < 2000; i++ {
+	//	tx := unknownTx(t, s)
+	//	t.Log("tx generated: ", tx.Hash())
+	//	newTxs[tx.Hash()] = tx
+	//	newTxHashes[i] = tx.Hash()
+	//}
+	//
+	//newPooledTxHashes := NewPooledTransactionHashes(newTxHashes)
+	//if err := sendConn.Write(&newPooledTxHashes); err != nil {
+	//	t.Fatalf("could not write to connection: %v", err)
+	//}
+	//
+	//switch msg := sendConn.ReadAndServe(s.chain, timeout).(type) {
+	//case *GetPooledTransactions:
+	//	req := *msg
+	//
+	//	resp := make([]*types.Transaction, len(req))
+	//	for i, tx := range req {
+	//		resp[i] = newTxs[tx]
+	//	}
+	//
+	//	pooledTxs := PooledTransactions(resp)
+	//	if err := sendConn.Write(&pooledTxs); err != nil {
+	//		t.Fatalf("could not write to connection: %v", err)
+	//	}
+	//default:
+	//	t.Fatalf("unexpected %s", pretty.Sdump(msg))
+	//}
+	//
+	//requestConn := s.setupConnection(t)
+	//time.Sleep(time.Second*20)
+	//// TODO: only request 250 hashes (see if it works)
+	//if err := requestConn.Write(GetPooledTransactions(newTxHashes[:250])); err != nil {
+	//	t.Fatalf("could not write to connection: %v", err)
+	//}
+	//
+	//switch msg := requestConn.ReadAndServe(s.chain, timeout).(type) {
+	//case *PooledTransactions:
+	//	pooledTxs := *msg
+	//	t.Logf("SUCCESS!!!!!!!!!!!!!!!!! \n\n: %d", len(pooledTxs))
+	//default:
+	//	t.Fatal(pretty.Sdump(msg))
+	//}
 }

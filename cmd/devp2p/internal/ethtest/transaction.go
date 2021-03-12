@@ -96,6 +96,10 @@ func sendFailingTxWithConns(t *utesting.T, s *Suite, tx *types.Transaction, send
 	}
 }
 
+//func generateTx(t *utesting.T, s *Suite) *types.Transaction {
+//	s.fullChain.blocks[s.chain.Len()].Transactions()
+//}
+
 func unknownTx(t *utesting.T, s *Suite) *types.Transaction {
 	tx := getNextTxFromChain(t, s)
 	var to common.Address
