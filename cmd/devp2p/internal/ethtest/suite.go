@@ -453,8 +453,37 @@ func (s *Suite) TestMaliciousTx(t *utesting.T) {
 func (s *Suite) TestLargeTxRequest(t *utesting.T) {
 	for _, block := range s.fullChain.blocks[s.chain.Len():] {
 		fmt.Println("block number: ", block.Number(), "tx count", len(block.Transactions()))
-
 	}
+
+	// TODO when get hash of tx, only have hash, node will check if it already knows about this tx
+	// todo optimize propagation, don't send tx unless node doesn't have it, node is supposed to request the full tx
+	// todo if it gets a hash that it doesn't know about
+
+	// todo batched txs (you get a batch of hashes, check it against local tx pool)
+	// todo i you don't have some txs in batch, only request those that you don't know about via GetPooledTxs request
+	// todo the only valid use of GetPooledTxs is to get txs for which you know the hash, then request full tx
+	// todo for those that you don't have in your pool
+	// todo node should propagate txs somehow (this is somehow up to the node), we don't know internal limits of
+	// todo node re: tx pool size.
+
+	// todo node should only propagate valid txs (i think this is covered by marius's tests)
+
+	// todo node usually ignores the tx if it's invalid (it doens't really drop the peer), bc tx is state-dependent
+	// todo we don't expect all peers to have the state of the blockchain at the current block height bc it might
+	// todo still be syncing. BUT if the node is syncing, it shouldn't be propagating txs at ALL.... the problem
+	// todo with blockchain is that you never truly know what the head of the chain is, so there are ordering problems
+	// todo so that's why you don't want to disconnect from peer.
+
+	// todo QUESTION: is there a way to generate a hivechain with 2000 transactions in one block?
+	// todo ANSWER: you should add GetBalance() to chain generator in go-ethereum -- this will make it possible
+	// todo 		to generate thousands of txs with hivechain tool
+
+	// todo think about which account is going to send which transaction and make fake transactions.. doesn't have
+	// todo to be a part of the actual chain bc the node won't mine it
+	// todo (increasing nonces), node doesn't keep track of potential future balance of account, it only checks that
+	// todo the account has the current balance to afford the tx (and correct nonce)
+
+	// todo MAKE ALL TESTS FOR ETH66 RATHER THAN ETH65 AND BELOW
 
 
 
