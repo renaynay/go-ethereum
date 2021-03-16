@@ -17,6 +17,8 @@
 package ethtest
 
 import (
+	"fmt"
+	"github.com/stretchr/testify/assert"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -202,6 +204,79 @@ func (s *Suite) TestLargeAnnounce_66(t *utesting.T) {
 	// wait for client to update its chain
 	if err := receiveConn.waitForBlock66(s.fullChain.blocks[nextBlock]); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func (s *Suite) TestBlockHashAnnounce_66(t *utesting.T) {
+	fmt.Println("next block: ", s.chain.Len(), "\n chain head: ", s.chain.Head().Hash())
+	nextBlock := s.fullChain.blocks[s.chain.Len()]
+	newBlockHash := NewBlockHashes{
+		{Hash: nextBlock.Hash(), Number: nextBlock.Number().Uint64()},
+	}
+	conn := s.setupConnection66(t)
+	if err := conn.Write(newBlockHash); err != nil {
+		t.Fatalf("could not write to connection: %v", err)
+	}
+	// expect GetBlockHeaders request, and respond
+	reqID, msg := conn.read66()
+	switch msg.(type) {
+	case GetBlockHeaders:
+		blockHeaderReq := msg.(GetBlockHeaders)
+		if blockHeaderReq.Amount != 1 {
+			t.Fatalf("unexpected number of block headers requested: %v", blockHeaderReq.Amount)
+		}
+		if blockHeaderReq.Origin.Hash != nextBlock.Hash() {
+			t.Fatalf("unexpected block header requested: %v", pretty.Sdump(blockHeaderReq))
+		}
+		blockHeaders := &eth.BlockHeadersPacket66{
+			RequestId: reqID,
+			BlockHeadersPacket: eth.BlockHeadersPacket{
+				nextBlock.Header(),
+			},
+		}
+		if err := conn.write66(blockHeaders, BlockHeaders{}.Code()); err != nil {
+			t.Fatalf("could not write to connection: %v", err)
+		}
+		if err := conn.Write(&BlockHeaders{nextBlock.Header()}); err != nil {
+			t.Fatalf("could not write to connection: %v", err)
+		}
+	default:
+		t.Fatalf("unexpected %s", pretty.Sdump(msg))
+	}
+	// create new connection to wait for block announcement
+	recvConn := s.setupConnection66(t)
+	// update the chain
+	s.chain.blocks = append(s.chain.blocks, nextBlock)
+	_, msg = recvConn.readAndServe66(s.chain, timeout*5)
+	switch msg.(type) {
+	case NewBlockHashes:
+		announcement := msg.(NewBlockHashes)
+		if len(announcement) != 1 {
+			t.Fatal("unexpected new block hash announcement: wanted 1 announcement, got %d", len(announcement))
+		}
+		if nextBlock.Hash() != announcement[0].Hash {
+			t.Fatalf("unexpected block hash announcement, wanted %v, got %v", nextBlock.Hash(),
+				announcement[0].Hash)
+		}
+	case NewBlock:
+		newBlock := msg.(NewBlock)
+		// node should only propagate NewBlock without having requested the body if the body is empty
+		nextBlockBody := nextBlock.Body()
+		if len(nextBlockBody.Transactions) !=  0 || len(nextBlockBody.Uncles) != 0 {
+			t.Fatalf("unexpected non-empty new block propagated: %s", pretty.Sdump(msg))
+		}
+		if newBlock.Block.Hash() != nextBlock.Hash() {
+			t.Fatalf("mismatched hash of propagated new block: wanted %v, got %v",
+				nextBlock.Hash(), newBlock.Block.Hash())
+		}
+		// check to make sure header matches header that was sent to the node
+		assert.Equal(t, nextBlock.Header(), newBlock.Block.Header())
+	default:
+		t.Fatalf("unexpected: %s", pretty.Sdump(msg))
+	}
+	// confirm node has imported new block
+	if err := recvConn.waitForBlock66(nextBlock); err != nil {
+		t.Fatalf("error waiting for node to import new block: %v", err)
 	}
 }
 

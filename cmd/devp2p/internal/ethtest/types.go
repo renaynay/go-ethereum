@@ -275,7 +275,8 @@ loop:
 		switch msg := c.Read().(type) {
 		case *Status:
 			if msg.Head != chain.blocks[chain.Len()-1].Hash() {
-				t.Fatalf("wrong head block in status: %s", msg.Head.String())
+				t.Fatalf("wrong head block in status: %s, wanted %s", msg.Head.String(),
+					chain.blocks[chain.Len()-1].Hash().String())
 			}
 			if msg.TD.Cmp(chain.TD(chain.Len())) != 0 {
 				t.Fatalf("wrong TD in status: %v", msg.TD)
